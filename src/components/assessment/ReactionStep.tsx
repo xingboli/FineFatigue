@@ -8,14 +8,12 @@ interface ReactionStepProps {
   isPostFatigue?: boolean;
   onComplete: (metrics: ReactionMetrics) => void;
   onBack?: () => void;
-  onSkip?: () => void;
 }
 
 export const ReactionStep: React.FC<ReactionStepProps> = ({
   isPostFatigue = false,
   onComplete,
-  onBack,
-  onSkip
+  onBack
 }) => {
   const { locale } = useI18n();
   const TOTAL_TRIALS = 8;
@@ -99,18 +97,8 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
   };
 
   // Calculate summary metrics
-  const computeMetrics = (): ReactionMetrics => {
-    if (trials.length === 0) {
-      return {
-        trials: [],
-        meanReactionMs: isPostFatigue ? 337 : 284,
-        medianReactionMs: isPostFatigue ? 337 : 284,
-        bestReactionMs: isPostFatigue ? 318 : 238,
-        worstReactionMs: isPostFatigue ? 388 : 351,
-        missRate: 0
-      };
-    }
-
+  const computeMetrics = (): ReactionMetrics | null => {
+    if (trials.length !== TOTAL_TRIALS) return null;
     const times = trials.map(t => t.reactionTimeMs).sort((a, b) => a - b);
     const sum = times.reduce((a, b) => a + b, 0);
     const mean = Math.round(sum / times.length);
@@ -129,7 +117,8 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
   };
 
   const handleProceed = () => {
-    onComplete(computeMetrics());
+    const metrics = computeMetrics();
+    if (metrics) onComplete(metrics);
   };
 
   const summary = computeMetrics();
@@ -170,17 +159,6 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
                 className="px-3 py-2 text-xs text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium"
               >
                 {locale === 'zh' ? '返回上一步' : 'Back'}
-              </button>
-            )}
-            {onSkip && (
-              <button
-                type="button"
-                onClick={() => {
-                  onComplete(computeMetrics());
-                }}
-                className="px-3 py-2 text-xs text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium"
-              >
-                {locale === 'zh' ? '跳过此项' : 'Skip Test'}
               </button>
             )}
           </div>
@@ -320,7 +298,7 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
                   {locale === 'zh' ? '反应时中位数' : 'Median Reaction'}
                 </div>
                 <div className="text-2xl font-bold text-cyan-700 mt-1 font-mono">
-                  {summary.medianReactionMs} <span className="text-xs font-normal text-cyan-600">ms</span>
+                  {summary?.medianReactionMs ?? '--'} <span className="text-xs font-normal text-cyan-600">ms</span>
                 </div>
                 <div className="text-[10px] text-cyan-600 mt-0.5">
                   {locale === 'zh' ? '抗极端值基准' : 'Central latency metric'}
@@ -332,7 +310,7 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
                   {locale === 'zh' ? '平均反应时' : 'Mean Reaction'}
                 </div>
                 <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">
-                  {summary.meanReactionMs} <span className="text-xs font-normal text-slate-500">ms</span>
+                  {summary?.meanReactionMs ?? '--'} <span className="text-xs font-normal text-slate-500">ms</span>
                 </div>
                 <div className="text-[10px] text-slate-400 mt-0.5">
                   {locale === 'zh' ? '算术平均值' : 'Arithmetic average'}
@@ -344,7 +322,7 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
                   {locale === 'zh' ? '最佳单轮 (最快)' : 'Best Trial'}
                 </div>
                 <div className="text-2xl font-bold text-emerald-600 mt-1 font-mono">
-                  {summary.bestReactionMs} <span className="text-xs font-normal text-emerald-700">ms</span>
+                  {summary?.bestReactionMs ?? '--'} <span className="text-xs font-normal text-emerald-700">ms</span>
                 </div>
                 <div className="text-[10px] text-slate-400 mt-0.5">
                   {locale === 'zh' ? '峰值反应速度' : 'Peak transmission speed'}
@@ -356,7 +334,7 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
                   {locale === 'zh' ? '最长单轮 (最慢)' : 'Worst Trial'}
                 </div>
                 <div className="text-2xl font-bold text-amber-600 mt-1 font-mono">
-                  {summary.worstReactionMs} <span className="text-xs font-normal text-amber-700">ms</span>
+                  {summary?.worstReactionMs ?? '--'} <span className="text-xs font-normal text-amber-700">ms</span>
                 </div>
                 <div className="text-[10px] text-slate-400 mt-0.5">
                   {locale === 'zh' ? '最大反应延迟' : 'Maximum latency'}
@@ -367,17 +345,8 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
             {/* Trial Bar Chart */}
             <div className="mt-6">
               <ReactionTrialChart
-                trials={summary.trials.length > 0 ? summary.trials : [
-                  { trialNumber: 1, reactionTimeMs: 292, isEarly: false },
-                  { trialNumber: 2, reactionTimeMs: 278, isEarly: false },
-                  { trialNumber: 3, reactionTimeMs: 265, isEarly: false },
-                  { trialNumber: 4, reactionTimeMs: 310, isEarly: false },
-                  { trialNumber: 5, reactionTimeMs: 284, isEarly: false },
-                  { trialNumber: 6, reactionTimeMs: 242, isEarly: false },
-                  { trialNumber: 7, reactionTimeMs: 270, isEarly: false },
-                  { trialNumber: 8, reactionTimeMs: 326, isEarly: false }
-                ]}
-                medianReactionMs={summary.medianReactionMs}
+                trials={summary?.trials ?? []}
+                medianReactionMs={summary?.medianReactionMs ?? 0}
               />
             </div>
 
@@ -395,7 +364,8 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
               <button
                 type="button"
                 onClick={handleProceed}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold transition-all shadow-xs"
+                disabled={!summary}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold transition-all shadow-xs disabled:opacity-50"
               >
                 <span>{locale === 'zh' ? '继续下一步：阿基米德螺旋描摹' : 'Continue to Spiral Tracing'}</span>
                 <ArrowRight className="w-4 h-4" />

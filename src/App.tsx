@@ -4,18 +4,18 @@ import { TopBar } from './components/layout/TopBar';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { AuthModal } from './components/common/AuthModal';
 import { CloudSyncModal } from './components/common/CloudSyncModal';
-import { SubjectiveFatigueBlockSlider } from './components/common/SubjectiveFatigueBlockSlider';
 import { OverviewPage } from './pages/OverviewPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SensorMonitorPage } from './pages/SensorMonitorPage';
 import { SessionsPage } from './pages/SessionsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AdminPage } from './pages/AdminPage';
 import { StarCatcherGame } from './components/games/StarCatcherGame';
 import { AssessmentWizard } from './components/assessment/AssessmentWizard';
 import { StorageService } from './services/storage';
 import { authService } from './services/authService';
 import { cloudSyncService } from './services/cloudSyncService';
-import { getSensorService } from './services/sensorSimulator';
+import { RealHardwareSensorAdapter } from './services/sensorAdapter';
 import { 
   AssessmentReportData, 
   IMUDataPoint, 
@@ -24,11 +24,12 @@ import {
   CloudSyncState, 
   SubjectiveFatigueRecord 
 } from './types';
-import { X } from 'lucide-react';
+
+const sensorService = new RealHardwareSensorAdapter();
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('overview');
-  const [subjectId, setSubjectId] = useState<string>('Subject 001');
+  const [subjectId, setSubjectId] = useState<string>('未设置');
   const [sessions, setSessions] = useState<AssessmentReportData[]>([]);
   const [activeReport, setActiveReport] = useState<AssessmentReportData | null>(null);
   const [subjectiveRecords, setSubjectiveRecords] = useState<SubjectiveFatigueRecord[]>([]);
@@ -38,19 +39,11 @@ export default function App() {
   const [syncState, setSyncState] = useState<CloudSyncState>(() => cloudSyncService.getState());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
-  const [isFatigueSliderModalOpen, setIsFatigueSliderModalOpen] = useState<boolean>(false);
 
   // Sensor state
-  const [isStreaming, setIsStreaming] = useState<boolean>(true);
-  const [sensorMode, setSensorMode] = useState<'simulator' | 'real'>('simulator');
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [currentIMU, setCurrentIMU] = useState<IMUDataPoint | null>(null);
-  const [sensorStatus, setSensorStatus] = useState<SensorStatus>({
-    connected: true,
-    samplingRate: 50,
-    packetsReceived: 0,
-    latencyMs: 14,
-    type: 'simulator'
-  });
+  const [sensorStatus, setSensorStatus] = useState<SensorStatus>(() => sensorService.getStatus());
 
   // Load sessions and subjective records from storage on mount
   useEffect(() => {
@@ -68,6 +61,21 @@ export default function App() {
       setSubjectId(savedSubject);
     }
   }, []);
+
+  useEffect(() => {
+    void authService.validateCurrentSession();
+  }, []);
+
+  // After a LAN account is restored or switched, merge the browser cache with
+  // the account's central record and refresh the visible dashboard data.
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'participant') return;
+    void cloudSyncService.syncNow().then(() => {
+      setSessions(StorageService.getSessions());
+      setSubjectiveRecords(StorageService.getSubjectiveFatigueRecords());
+      setActiveReport(StorageService.getActiveReport());
+    });
+  }, [currentUser?.id]);
 
   // Listen to Auth changes
   useEffect(() => {
@@ -89,40 +97,29 @@ export default function App() {
     };
   }, []);
 
-  // Sensor stream connection
+  // Subscribe to physical browser DeviceMotion events only. No simulated IMU
+  // data is generated or passed into experimental measurement components.
   useEffect(() => {
-    const sensorService = getSensorService();
-    let packetCounter = 0;
-
     const unsubscribe = sensorService.subscribe((data: IMUDataPoint) => {
-      packetCounter++;
       setCurrentIMU(data);
-
-      if (packetCounter % 25 === 0) {
-        setSensorStatus({
-          connected: sensorService.isConnected(),
-          samplingRate: sensorService.getSamplingRate(),
-          packetsReceived: packetCounter,
-          latencyMs: 12 + Math.floor(Math.random() * 6),
-          type: sensorService.getSensorType()
-        });
-      }
+      setSensorStatus(sensorService.getStatus());
+      setIsStreaming(true);
     });
-
     return () => {
       unsubscribe();
     };
   }, []);
 
-  const handleToggleStreaming = (start: boolean) => {
-    const sensorService = getSensorService();
-    if (start) {
-      sensorService.start();
-      setIsStreaming(true);
-    } else {
-      sensorService.stop();
+  const handleRequestImuAccess = async (): Promise<boolean> => {
+    try {
+      const accessGranted = await sensorService.connect();
+      setSensorStatus(sensorService.getStatus());
+      setIsStreaming(accessGranted);
+      return accessGranted;
+    } catch {
+      setSensorStatus(sensorService.getStatus());
       setIsStreaming(false);
-      setSensorStatus(prev => ({ ...prev, connected: false }));
+      return false;
     }
   };
 
@@ -154,21 +151,19 @@ export default function App() {
     setCurrentTab('assessment');
   };
 
-  const handleAssessmentComplete = (report: AssessmentReportData) => {
+  const handleAssessmentComplete = async (report: AssessmentReportData) => {
     setActiveReport(report);
     setSessions(StorageService.getSessions());
     cloudSyncService.markPending();
-    cloudSyncService.syncNow();
+    await cloudSyncService.syncNow();
+    setSessions(StorageService.getSessions());
+    setSubjectiveRecords(StorageService.getSubjectiveFatigueRecords());
     setCurrentTab('report');
   };
 
   const handleOpenReport = (report: AssessmentReportData) => {
     setActiveReport(report);
     setCurrentTab('report');
-  };
-
-  const handleSubjectiveSaved = (record: SubjectiveFatigueRecord) => {
-    setSubjectiveRecords(StorageService.getSubjectiveFatigueRecords());
   };
 
   return (
@@ -179,6 +174,7 @@ export default function App() {
         onSelectTab={tab => setCurrentTab(tab)}
         onStartAssessment={handleStartAssessment}
         currentUser={currentUser}
+        isAdmin={currentUser?.role === 'researcher'}
         syncState={syncState}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenSync={() => setIsSyncModalOpen(true)}
@@ -194,7 +190,6 @@ export default function App() {
           onStartAssessment={handleStartAssessment}
           onOpenAuth={() => setIsAuthModalOpen(true)}
           onOpenSync={() => setIsSyncModalOpen(true)}
-          onOpenFatigueSlider={() => setIsFatigueSliderModalOpen(true)}
         />
 
         {/* Content View with bottom padding for mobile navigation bar */}
@@ -208,13 +203,15 @@ export default function App() {
               onStartAssessment={handleStartAssessment}
               onOpenReport={handleOpenReport}
               onNavigateToSessions={() => setCurrentTab('sessions')}
-              onOpenStarCatcher={() => setCurrentTab('star_catcher')}
             />
           )}
 
           {currentTab === 'assessment' && (
             <AssessmentWizard
               subjectId={subjectId}
+              sensorStatus={sensorStatus}
+              currentData={currentIMU}
+              onRequestImuAccess={handleRequestImuAccess}
               onComplete={handleAssessmentComplete}
               onCancel={() => setCurrentTab('overview')}
             />
@@ -232,10 +229,8 @@ export default function App() {
             <SensorMonitorPage
               sensorStatus={sensorStatus}
               currentData={currentIMU}
-              onToggleStreaming={handleToggleStreaming}
+              onRequestImuAccess={handleRequestImuAccess}
               isStreaming={isStreaming}
-              onSwitchMode={mode => setSensorMode(mode)}
-              mode={sensorMode}
             />
           )}
 
@@ -260,6 +255,8 @@ export default function App() {
               onResetData={handleResetData}
             />
           )}
+
+          {currentTab === 'admin' && currentUser?.role === 'researcher' && <AdminPage />}
         </main>
 
         {/* Mobile Thumb-Friendly Bottom Navigation Bar */}
@@ -268,8 +265,8 @@ export default function App() {
           onSelectTab={tab => setCurrentTab(tab)}
           onOpenAuth={() => setIsAuthModalOpen(true)}
           onOpenSync={() => setIsSyncModalOpen(true)}
-          onOpenFatigueSlider={() => setIsFatigueSliderModalOpen(true)}
           currentUser={currentUser}
+          isAdmin={currentUser?.role === 'researcher'}
           syncState={syncState}
         />
       </div>
@@ -289,28 +286,6 @@ export default function App() {
         syncState={syncState}
       />
 
-      {/* Subjective Fatigue Slider Modal (Accessible from anywhere) */}
-      {isFatigueSliderModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="max-w-lg w-full relative">
-            <button
-              type="button"
-              onClick={() => setIsFatigueSliderModalOpen(false)}
-              className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center shadow-md"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <SubjectiveFatigueBlockSlider
-              initialRating={subjectiveRecords[0]?.rating || 5}
-              onSaved={rec => {
-                handleSubjectiveSaved(rec);
-                setIsFatigueSliderModalOpen(false);
-              }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-

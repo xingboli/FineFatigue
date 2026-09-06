@@ -34,9 +34,7 @@ export function analyzeTracing(
   templatePoints: { x: number; y: number }[],
   isPostFatigue: boolean = false
 ): TracingMetrics {
-  if (!userPoints || userPoints.length < 10 || !templatePoints || templatePoints.length < 10) {
-    return createDefaultTracingMetrics(isPostFatigue);
-  }
+  if (!userPoints || userPoints.length < 10 || !templatePoints || templatePoints.length < 10) throw new Error('Recorded tracing points are required for tracing analysis.');
 
   // 1. Calculate Path RMSE against template points
   let totalSqDistance = 0;
@@ -105,17 +103,5 @@ export function analyzeTracing(
     pathInterruptions: Math.min(8, pathInterruptions),
     userPoints,
     templatePoints
-  };
-}
-
-export function createDefaultTracingMetrics(isPostFatigue: boolean = false): TracingMetrics {
-  return {
-    pathRMSE: isPostFatigue ? 13.8 : 7.2,
-    meanSpeed: isPostFatigue ? 88 : 112,
-    smoothness: isPostFatigue ? 68 : 86,
-    pauseCount: isPostFatigue ? 4 : 2,
-    pathInterruptions: isPostFatigue ? 2 : 1,
-    userPoints: [],
-    templatePoints: []
   };
 }

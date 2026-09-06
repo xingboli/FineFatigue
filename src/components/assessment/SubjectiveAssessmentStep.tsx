@@ -17,14 +17,12 @@ import { useI18n } from '../../i18n/context';
 interface SubjectiveAssessmentStepProps {
   onComplete: (record: SubjectiveFatigueRecord) => void;
   onBack?: () => void;
-  onSkip?: () => void;
   initialRating?: number;
 }
 
 export const SubjectiveAssessmentStep: React.FC<SubjectiveAssessmentStepProps> = ({
   onComplete,
   onBack,
-  onSkip,
   initialRating = 5
 }) => {
   const { locale } = useI18n();
@@ -325,15 +323,6 @@ export const SubjectiveAssessmentStep: React.FC<SubjectiveAssessmentStepProps> =
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>{locale === 'zh' ? '返回测验2 (描摹)' : 'Back to Test 2'}</span>
-              </button>
-            )}
-            {onSkip && (
-              <button
-                type="button"
-                onClick={onSkip}
-                className="px-3 py-2 text-slate-400 hover:text-slate-600 text-xs font-medium transition-colors"
-              >
-                {locale === 'zh' ? '暂不填写 (以默认值记录)' : 'Skip Self-Rating'}
               </button>
             )}
           </div>

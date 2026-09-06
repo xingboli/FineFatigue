@@ -1,26 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, RotateCcw, ArrowRight, Activity, CheckCircle, ShieldAlert } from 'lucide-react';
-import { IMUDataPoint, StabilityMetrics } from '../../types';
+import { IMUDataPoint, SensorStatus, StabilityMetrics } from '../../types';
 import { WaveformCanvas } from '../charts/WaveformCanvas';
 import { FrequencySpectrumChart } from '../charts/FrequencySpectrumChart';
 import { analyzeHandStability } from '../../utils/signalProcessing';
-import { getSensorService } from '../../services/sensorSimulator';
 import { useI18n } from '../../i18n/context';
 
 interface HandStabilityStepProps {
-  currentData?: IMUDataPoint | null;
+  currentData: IMUDataPoint | null;
+  sensorStatus: SensorStatus;
+  onRequestImuAccess: () => Promise<boolean>;
   isPostFatigue?: boolean;
   onComplete: (metrics: StabilityMetrics) => void;
   onBack?: () => void;
-  onSkip?: () => void;
 }
 
 export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
-  currentData: propCurrentData,
+  currentData,
+  sensorStatus,
+  onRequestImuAccess,
   isPostFatigue = false,
   onComplete,
-  onBack,
-  onSkip
+  onBack
 }) => {
   const { locale } = useI18n();
   const [stage, setStage] = useState<'idle' | 'pre-countdown' | 'recording' | 'finished'>('idle');
@@ -28,17 +29,9 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
   const [timeLeft, setTimeLeft] = useState<number>(15);
   const recordedDataRef = useRef<IMUDataPoint[]>([]);
   const [calculatedMetrics, setCalculatedMetrics] = useState<StabilityMetrics | null>(null);
-
-  // Live data subscription if not passed via props
-  const [liveData, setLiveData] = useState<IMUDataPoint | null>(propCurrentData || null);
-  useEffect(() => {
-    if (propCurrentData !== undefined) return;
-    const sensor = getSensorService();
-    const unsub = sensor.subscribe((pt) => setLiveData(pt));
-    return () => unsub();
-  }, [propCurrentData]);
-
-  const currentData = propCurrentData !== undefined ? propCurrentData : liveData;
+  const [collectionError, setCollectionError] = useState(false);
+  const [isRequestingAccess, setIsRequestingAccess] = useState(false);
+  const isImuAvailable = sensorStatus.connected && sensorStatus.type === 'real';
 
   // Pre-countdown 3-2-1
   useEffect(() => {
@@ -64,7 +57,11 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
       const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(t);
     } else {
-      // Complete recording and analyze
+      if (recordedDataRef.current.length < 30) {
+        setCollectionError(true);
+        setStage('idle');
+        return;
+      }
       const metrics = analyzeHandStability(recordedDataRef.current, isPostFatigue);
       setCalculatedMetrics(metrics);
       setStage('finished');
@@ -79,23 +76,27 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
   }, [stage, currentData]);
 
   const handleStart = () => {
+    if (!isImuAvailable) return;
+    setCollectionError(false);
     setCountdown(3);
     setStage('pre-countdown');
+  };
+
+  const requestImuAccess = async () => {
+    setIsRequestingAccess(true);
+    await onRequestImuAccess();
+    setIsRequestingAccess(false);
   };
 
   const handleRetry = () => {
     recordedDataRef.current = [];
     setCalculatedMetrics(null);
+    setCollectionError(false);
     setStage('idle');
   };
 
   const handleProceed = () => {
-    if (calculatedMetrics) {
-      onComplete(calculatedMetrics);
-    } else {
-      const metrics = analyzeHandStability([], isPostFatigue);
-      onComplete(metrics);
-    }
+    if (calculatedMetrics) onComplete(calculatedMetrics);
   };
 
   return (
@@ -136,25 +137,31 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
                 {locale === 'zh' ? '返回上一步' : 'Back'}
               </button>
             )}
-            {onSkip && (
-              <button
-                type="button"
-                onClick={() => {
-                  const m = analyzeHandStability([], isPostFatigue);
-                  onComplete(m);
-                }}
-                className="px-3 py-2 text-xs text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium"
-              >
-                {locale === 'zh' ? '跳过此项' : 'Skip Test'}
-              </button>
-            )}
           </div>
         </div>
       </div>
 
       {/* Main Testing View */}
-      {stage !== 'finished' ? (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-6">
+      {!isImuAvailable ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center space-y-3">
+          <ShieldAlert className="w-7 h-7 text-amber-600 mx-auto" />
+          <div>
+            <h3 className="font-bold text-amber-950">{locale === 'zh' ? '无法开始稳定性采集：IMU 传感器不可用' : 'Cannot start stability recording: IMU unavailable'}</h3>
+            <p className="text-xs text-amber-800 mt-1">{locale === 'zh' ? '此实验项不会生成替代数据或默认分数。请在手机上授权运动与方向访问，然后重新开始。' : 'This study item will not generate substitute data or a default score. Authorize Motion & Orientation access on the phone, then try again.'}</p>
+          </div>
+          <button
+            type="button"
+            disabled={isRequestingAccess || sensorStatus.permission === 'unsupported'}
+            onClick={requestImuAccess}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold disabled:opacity-50"
+          >
+            <Activity className="w-4 h-4" />
+            <span>{isRequestingAccess ? (locale === 'zh' ? '正在请求权限…' : 'Requesting permission…') : (locale === 'zh' ? '启用手机 IMU' : 'Enable phone IMU')}</span>
+          </button>
+        </div>
+      ) : stage !== 'finished' ? (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-6">
+          {collectionError && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{locale === 'zh' ? '采集期间没有收到足够的真实 IMU 样本，本次结果已丢弃。请确认设备未锁屏并重新采集。' : 'Too few physical IMU samples were received. This attempt was discarded; keep the device awake and retry.'}</div>}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 border border-slate-200/70 rounded-xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold font-mono">
@@ -313,7 +320,8 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
               <button
                 type="button"
                 onClick={handleProceed}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold transition-all shadow-xs"
+                disabled={!calculatedMetrics}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold transition-all shadow-xs disabled:opacity-50"
               >
                 <span>{locale === 'zh' ? '继续下一步：手指敲击测试' : 'Continue to Finger Tapping'}</span>
                 <ArrowRight className="w-4 h-4" />

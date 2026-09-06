@@ -4,9 +4,7 @@ import { TapRecord, TappingMetrics } from '../types';
  * Computes tap rate, inter-tap intervals, rhythm CV, and segmented performance decrement.
  */
 export function analyzeTapping(taps: TapRecord[], totalDurationMs: number = 15000): TappingMetrics {
-  if (!taps || taps.length < 2) {
-    return createDefaultTappingMetrics(false);
-  }
+  if (!taps || taps.length < 2) throw new Error('At least two recorded taps are required for tapping analysis.');
 
   const durationSec = totalDurationMs / 1000;
   const totalTaps = taps.length;
@@ -54,38 +52,5 @@ export function analyzeTapping(taps: TapRecord[], totalDurationMs: number = 1500
     last5sRate,
     performanceDecrement,
     taps
-  };
-}
-
-export function createDefaultTappingMetrics(isPostFatigue: boolean = false): TappingMetrics {
-  const dummyTaps: TapRecord[] = [];
-  const count = isPostFatigue ? 53 : 63;
-  const baseInterval = isPostFatigue ? 280 : 238;
-
-  let currentMs = 0;
-  for (let i = 0; i < count; i++) {
-    const jitter = (Math.random() - 0.5) * (isPostFatigue ? 60 : 30);
-    const interval = Math.max(120, Math.round(baseInterval + jitter + (isPostFatigue ? (i * 1.5) : 0)));
-    currentMs += interval;
-    if (currentMs > 15000) break;
-
-    dummyTaps.push({
-      timestamp: Date.now() - (15000 - currentMs),
-      target: i % 2 === 0 ? 'left' : 'right',
-      interval: i === 0 ? 0 : interval,
-      timeFromStart: currentMs
-    });
-  }
-
-  return {
-    totalTaps: isPostFatigue ? 53 : 63,
-    tapRate: isPostFatigue ? 3.54 : 4.21,
-    meanITI: isPostFatigue ? 282 : 238,
-    rhythmCV: isPostFatigue ? 13.8 : 8.3,
-    first5sRate: isPostFatigue ? 3.82 : 4.21,
-    middle5sRate: isPostFatigue ? 3.54 : 3.87,
-    last5sRate: isPostFatigue ? 3.26 : 3.54,
-    performanceDecrement: isPostFatigue ? 18.2 : 15.9,
-    taps: dummyTaps
   };
 }

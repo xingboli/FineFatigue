@@ -1,16 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Flame, Play, FastForward, CheckCircle2, Zap } from 'lucide-react';
+import { Flame, Play, CheckCircle2, Zap } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
 
 interface FatigueChallengeStepProps {
   onComplete: (durationSec: number, totalTaps: number) => void;
-  onSkip?: () => void;
 }
 
-export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({
-  onComplete,
-  onSkip
-}) => {
+export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onComplete }) => {
   const { locale } = useI18n();
   const [mode, setMode] = useState<30 | 60>(30);
   const [stage, setStage] = useState<'idle' | 'running' | 'finished'>('idle');
@@ -108,7 +104,7 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({
                     mode === 30 ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  {locale === 'zh' ? '30秒 (默认测试)' : '30s (Demo Default)'}
+                  {locale === 'zh' ? '30秒' : '30 seconds'}
                 </button>
                 <button
                   type="button"
@@ -125,16 +121,6 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({
               </div>
             )}
 
-            {onSkip && (
-              <button
-                type="button"
-                onClick={() => onComplete(30, 138)}
-                className="inline-flex items-center gap-1 px-3 py-2 text-xs text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors font-medium"
-              >
-                <FastForward className="w-3.5 h-3.5" />
-                <span>{locale === 'zh' ? '跳过挑战 (预设疲劳)' : 'Skip Challenge (Demo)'}</span>
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -268,8 +254,8 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({
             </h3>
             <p className="text-xs text-slate-500 mt-1">
               {locale === 'zh'
-                ? `在 ${mode} 秒内共完成 ${tapCount} 次高频敲击。传感器动态模型现已切换至疲劳摄动状态，准备进行多模态负荷后复测。`
-                : `${tapCount} total rapid taps logged over ${mode} seconds. Sensor simulator is now adjusted to post-fatigue perturbation dynamics.`}
+                ? `在 ${mode} 秒内共记录 ${tapCount} 次高频敲击。现在进入真实的负荷后复测。`
+                : `${tapCount} rapid taps were recorded over ${mode} seconds. Continue to the physical post-load assessment.`}
             </p>
           </div>
 

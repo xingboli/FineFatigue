@@ -10,11 +10,12 @@ export interface IMUDataPoint {
 
 export interface SensorStatus {
   connected: boolean;
-  type: 'simulator' | 'real';
+  type: 'real';
   samplingRate: number; // Hz, default 50
   packetsReceived: number;
   latencyMs: number;
-  calibrated: boolean;
+  supported?: boolean;
+  permission?: 'unknown' | 'granted' | 'denied' | 'unsupported';
 }
 
 export interface StabilityMetrics {

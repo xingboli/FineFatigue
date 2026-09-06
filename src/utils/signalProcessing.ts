@@ -8,9 +8,7 @@ export function analyzeHandStability(
   data: IMUDataPoint[],
   isPostFatigue: boolean = false
 ): StabilityMetrics {
-  if (!data || data.length === 0) {
-    return createDefaultStabilityMetrics(isPostFatigue);
-  }
+  if (!data || data.length === 0) throw new Error('Physical IMU samples are required for stability analysis.');
 
   // Calculate motion magnitude variance (subtracting 1g gravity baseline from az)
   const magnitudes = data.map(d => {
@@ -86,30 +84,5 @@ export function analyzeHandStability(
     stabilityScore,
     spectrum,
     waveforms: data.slice(-150) // keep last segment for review
-  };
-}
-
-export function createDefaultStabilityMetrics(isPostFatigue: boolean = false): StabilityMetrics {
-  const spectrum: { freq: number; power: number }[] = [];
-  const dominantFreq = isPostFatigue ? 9.4 : 8.2;
-  
-  for (let f = 0.5; f <= 12.0; f += 0.5) {
-    const dist = Math.abs(f - dominantFreq);
-    const basePower = Math.exp(-dist * dist / 2) * (isPostFatigue ? 0.08 : 0.05);
-    const noise = Math.random() * 0.01;
-    spectrum.push({
-      freq: Number(f.toFixed(1)),
-      power: Number((basePower + noise).toFixed(4))
-    });
-  }
-
-  return {
-    motionRMS: isPostFatigue ? 0.092 : 0.064,
-    dominantFrequency: dominantFreq,
-    totalPower0_12Hz: isPostFatigue ? 0.42 : 0.26,
-    spectralEntropy: isPostFatigue ? 0.68 : 0.51,
-    stabilityScore: isPostFatigue ? 61 : 84,
-    spectrum,
-    waveforms: []
   };
 }

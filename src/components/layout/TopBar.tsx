@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, CheckCircle2, Sliders, PlayCircle, Cloud, User, Sparkles } from 'lucide-react';
+import { Radio, CheckCircle2, PlayCircle, Cloud, User } from 'lucide-react';
 import { SensorStatus, UserProfile, CloudSyncState } from '../../types';
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
@@ -13,7 +13,6 @@ interface TopBarProps {
   onOpenSettings?: () => void;
   onOpenAuth?: () => void;
   onOpenSync?: () => void;
-  onOpenFatigueSlider?: () => void;
   currentStepTitle?: string;
 }
 
@@ -26,7 +25,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenSettings,
   onOpenAuth,
   onOpenSync,
-  onOpenFatigueSlider,
   currentStepTitle
 }) => {
   const { t, locale } = useI18n();
@@ -66,19 +64,6 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Right Action & Telemetry Badges */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 text-xs">
-        {/* Quick Fatigue Slider Button */}
-        {onOpenFatigueSlider && (
-          <button
-            type="button"
-            onClick={onOpenFatigueSlider}
-            className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-medium transition-colors flex items-center gap-1 shadow-2xs"
-            title={locale === 'zh' ? '滑动方块记录当前疲劳' : 'Subjective Fatigue Slider'}
-          >
-            <Sliders className="w-3.5 h-3.5 text-amber-600" />
-            <span className="hidden sm:inline">{locale === 'zh' ? '疲劳自评' : 'Rating'}</span>
-          </button>
-        )}
-
         {/* Cloud Sync Status Badge Button */}
         {onOpenSync && (
           <button
@@ -102,8 +87,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 font-mono">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span className="text-slate-500 hidden md:inline">{t.topbar.imuStatus}</span>
-          <span className="font-semibold text-emerald-700">
-            {sensorStatus.connected ? t.common.connected : t.common.disconnected}
+          <span className={`font-semibold ${sensorStatus.connected ? 'text-emerald-700' : 'text-amber-700'}`}>
+            {sensorStatus.connected ? t.common.connected : (locale === 'zh' ? 'IMU 不可用' : 'IMU unavailable')}
           </span>
         </div>
 
@@ -140,4 +125,3 @@ export const TopBar: React.FC<TopBarProps> = ({
     </header>
   );
 };
-

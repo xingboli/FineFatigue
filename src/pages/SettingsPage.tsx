@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Save, RotateCcw, Shield, Cpu, Sliders, Database, Check, Globe } from 'lucide-react';
-import { StorageService } from '../services/storage';
+import { Save, RotateCcw, Sliders, Database, Check, Globe } from 'lucide-react';
 import { useI18n } from '../i18n/context';
 import { LanguageSwitcher } from '../components/common/LanguageSwitcher';
 
@@ -18,12 +17,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const { t, locale, setLocale } = useI18n();
   const [currentId, setCurrentId] = useState(subjectId);
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [sensorRate, setSensorRate] = useState(50);
-  const [simNoise, setSimNoise] = useState(1.0);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateSubjectId(currentId.trim() || 'Subject 001');
+    onUpdateSubjectId(currentId.trim() || '未设置');
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
   };
@@ -103,7 +100,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               type="text"
               value={currentId}
               onChange={e => setCurrentId(e.target.value)}
-              placeholder="Subject 001"
+              placeholder={locale === 'zh' ? '例如：SUBJ-001' : 'e.g. SUBJ-001'}
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-sm"
             />
             <p className="text-[11px] text-slate-400">
@@ -112,43 +109,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         </div>
 
-        {/* Telemetry & Physics Simulation */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
-          <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <Cpu className="w-4 h-4 text-cyan-600" />
-            <span>{t.settings.telemetrySectionTitle}</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">{t.settings.imuRateLabel}</label>
-              <select
-                value={sensorRate}
-                onChange={e => setSensorRate(Number(e.target.value))}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm"
-              >
-                <option value={25}>{t.settings.rate25}</option>
-                <option value={50}>{t.settings.rate50}</option>
-                <option value={100}>{t.settings.rate100}</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">{t.settings.tremorNoiseLabel}</label>
-              <select
-                value={simNoise}
-                onChange={e => setSimNoise(Number(e.target.value))}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm"
-              >
-                <option value={0.8}>{t.settings.noiseLow}</option>
-                <option value={1.0}>{t.settings.noiseNormal}</option>
-                <option value={1.4}>{t.settings.noiseHigh}</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Local Storage Maintenance */}
+        {/* Local record maintenance */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
           <div className="flex items-center gap-2 text-sm font-bold text-slate-900">
             <Database className="w-4 h-4 text-cyan-600" />
@@ -192,4 +153,3 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     </div>
   );
 };
-

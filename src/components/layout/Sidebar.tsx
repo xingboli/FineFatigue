@@ -12,13 +12,14 @@ import {
   Globe,
   Cloud,
   UserCheck,
-  RefreshCw
+  RefreshCw,
+  Shield
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
 import { UserProfile, CloudSyncState } from '../../types';
 
-export type PageId = 'overview' | 'assessment' | 'sessions' | 'sensor_monitor' | 'report' | 'star_catcher' | 'settings' | 'monitor' | 'reports' | 'game';
+export type PageId = 'overview' | 'assessment' | 'sessions' | 'sensor_monitor' | 'report' | 'star_catcher' | 'settings' | 'admin' | 'monitor' | 'reports' | 'game';
 
 interface SidebarProps {
   currentPage?: string;
@@ -31,6 +32,7 @@ interface SidebarProps {
   syncState?: CloudSyncState;
   onOpenAuth?: () => void;
   onOpenSync?: () => void;
+  isAdmin?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -43,7 +45,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentUser,
   syncState,
   onOpenAuth,
-  onOpenSync
+  onOpenSync,
+  isAdmin = false
 }) => {
   const { t, locale, toggleLocale } = useI18n();
 
@@ -63,8 +66,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'sessions', label: t.nav.sessions, icon: History, badge: null },
     { id: 'sensor_monitor', label: t.nav.monitor, icon: Radio, badge: '50Hz' },
     { id: 'report', label: t.nav.reports, icon: FileText, badge: null },
-    { id: 'star_catcher', label: t.nav.game, icon: Gamepad2, badge: t.nav.badgeDemo },
+    { id: 'star_catcher', label: t.nav.game, icon: Gamepad2 },
     { id: 'settings', label: t.nav.settings, icon: Settings, badge: null },
+    ...(isAdmin ? [{ id: 'admin', label: locale === 'zh' ? '管理员后台' : 'Administration', icon: Shield, badge: null }] : []),
   ];
 
   const isCurrentActive = (id: string) => {
@@ -206,5 +210,3 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </aside>
   );
 };
-
-

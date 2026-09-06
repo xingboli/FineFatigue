@@ -14,7 +14,7 @@ import { AssessmentBatteryData, AssessmentReportData, FatigueDimensionScore, Sub
 export function calculateFatigueScores(
   baseline: AssessmentBatteryData,
   post: AssessmentBatteryData,
-  subjectId: string = 'Subject 001',
+  subjectId: string,
   challengeDurationSec: number = 30,
   challengeTaps: number = 142,
   subjectiveFatigue?: SubjectiveFatigueRecord

@@ -3,7 +3,6 @@ import {
   Activity, 
   PlayCircle, 
   BarChart3, 
-  Sliders, 
   Menu, 
   X, 
   Radio, 
@@ -11,7 +10,8 @@ import {
   Settings, 
   Cloud, 
   User, 
-  FileText 
+  FileText,
+  Shield
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
@@ -22,9 +22,9 @@ interface MobileBottomNavProps {
   onSelectTab: (tab: string) => void;
   onOpenAuth: () => void;
   onOpenSync: () => void;
-  onOpenFatigueSlider: () => void;
   currentUser: UserProfile | null;
   syncState: CloudSyncState;
+  isAdmin?: boolean;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -32,9 +32,9 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onSelectTab,
   onOpenAuth,
   onOpenSync,
-  onOpenFatigueSlider,
   currentUser,
-  syncState
+  syncState,
+  isAdmin = false
 }) => {
   const { locale, t } = useI18n();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -88,17 +88,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <span className="text-[10px] leading-tight">{locale === 'zh' ? '历史对比' : 'History'}</span>
         </button>
 
-        {/* 4. Subjective Fatigue Slider Trigger */}
-        <button
-          type="button"
-          onClick={onOpenFatigueSlider}
-          className="flex-1 min-h-[48px] flex flex-col items-center justify-center gap-0.5 text-slate-500 hover:text-slate-800"
-        >
-          <Sliders className="w-5 h-5 text-amber-500" />
-          <span className="text-[10px] leading-tight">{locale === 'zh' ? '疲劳自评' : 'Rating'}</span>
-        </button>
-
-        {/* 5. More / Menu Drawer toggle */}
+        {/* 4. More / Menu Drawer toggle */}
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -195,7 +185,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   <Gamepad2 className="w-4 h-4 text-purple-600" />
                   <span>{locale === 'zh' ? '手眼协调捕星小游戏' : 'Star Catcher Game'}</span>
                 </div>
-                <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-mono">Demo</span>
+                <span className="text-[10px] text-slate-400 font-mono">{locale === 'zh' ? '独立任务' : 'Separate task'}</span>
               </button>
 
               <button
@@ -208,6 +198,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                   <span>{locale === 'zh' ? '系统参数与重置' : 'System Settings'}</span>
                 </div>
               </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => handleNavClick('admin')}
+                  className="w-full p-2.5 rounded-xl hover:bg-slate-50 text-left text-xs font-medium text-slate-700 flex items-center gap-2.5"
+                >
+                  <Shield className="w-4 h-4 text-cyan-600" />
+                  <span>{locale === 'zh' ? '管理员后台' : 'Administration'}</span>
+                </button>
+              )}
             </div>
 
             {/* Bottom Row */}

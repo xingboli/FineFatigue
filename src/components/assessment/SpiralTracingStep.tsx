@@ -9,14 +9,12 @@ interface SpiralTracingStepProps {
   isPostFatigue?: boolean;
   onComplete: (metrics: TracingMetrics) => void;
   onBack?: () => void;
-  onSkip?: () => void;
 }
 
 export const SpiralTracingStep: React.FC<SpiralTracingStepProps> = ({
   isPostFatigue = false,
   onComplete,
-  onBack,
-  onSkip
+  onBack
 }) => {
   const { locale } = useI18n();
   const [userPoints, setUserPoints] = useState<Point2D[]>([]);
@@ -35,12 +33,7 @@ export const SpiralTracingStep: React.FC<SpiralTracingStepProps> = ({
   };
 
   const handleComplete = () => {
-    if (calculatedMetrics) {
-      onComplete(calculatedMetrics);
-    } else {
-      const fallback = analyzeTracing(userPoints, templatePoints, isPostFatigue);
-      onComplete(fallback);
-    }
+    if (calculatedMetrics) onComplete(calculatedMetrics);
   };
 
   const handleRetry = () => {
@@ -84,18 +77,6 @@ export const SpiralTracingStep: React.FC<SpiralTracingStepProps> = ({
                 className="px-3 py-2 text-xs text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium"
               >
                 {locale === 'zh' ? '返回上一步' : 'Back'}
-              </button>
-            )}
-            {onSkip && (
-              <button
-                type="button"
-                onClick={() => {
-                  const fallback = analyzeTracing([], [], isPostFatigue);
-                  onComplete(fallback);
-                }}
-                className="px-3 py-2 text-xs text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium"
-              >
-                {locale === 'zh' ? '跳过此项' : 'Skip Test'}
               </button>
             )}
           </div>
@@ -206,7 +187,8 @@ export const SpiralTracingStep: React.FC<SpiralTracingStepProps> = ({
               <button
                 type="button"
                 onClick={handleComplete}
-                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold transition-all shadow-xs"
+                disabled={!calculatedMetrics}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold transition-all shadow-xs disabled:opacity-50"
               >
                 <span>
                   {locale === 'zh' 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, RotateCcw, Sparkles, Trophy, ShieldAlert, ArrowRight } from 'lucide-react';
 import { StarCatcherResult } from '../../types';
+import { useI18n } from '../../i18n/context';
 
 interface StarCatcherGameProps {
   onGameEnd?: (result: StarCatcherResult) => void;
@@ -22,6 +23,22 @@ interface Obstacle {
 }
 
 export const StarCatcherGame: React.FC<StarCatcherGameProps> = ({ onGameEnd }) => {
+  const { locale } = useI18n();
+  const copy = locale === 'zh' ? {
+    tag: '独立运动实验', fps: '画布 60 FPS', title: '捕星挑战',
+    description: '精细运动控制挑战：移动发光指针捕捉星星，并避开红色禁区。25 秒内评估轨迹速度、目标命中准确度与运动节律。',
+    timer: '计时', score: '得分', combo: '连击', stars: '星星', noGo: '禁区',
+    challenge: '捕星挑战', instruction: '在画布中移动手指或鼠标，控制发光指针。捕捉星星可累积连击。',
+    start: '开始挑战（25 秒）', result: '捕星精细运动评估', completed: '已完成 25 秒',
+    finalScore: '最终得分', hitRate: '目标命中率', acquisition: '平均捕获时间', accuracy: '控制准确度', fineMotor: '精细运动得分', replay: '再玩一次'
+  } : {
+    tag: 'Independent Motor Experiment', fps: 'Canvas 60 FPS', title: 'Star Catcher',
+    description: 'Fine Motor Control Challenge. Move the glowing pointer to capture stars while avoiding red forbidden zones. Evaluates path velocity, targeting accuracy, and motor rhythm in a 25s session.',
+    timer: 'Timer', score: 'Score', combo: 'Combo', stars: 'Stars', noGo: 'NO GO',
+    challenge: 'Star Catcher Challenge', instruction: 'Hover your finger or mouse over the canvas to steer the glowing point. Collect stars to build combos.',
+    start: 'Start Challenge (25s)', result: 'Star Catcher Fine Motor Assessment', completed: 'Completed 25s',
+    finalScore: 'Final Score', hitRate: 'Target Hit Rate', acquisition: 'Avg Acquisition', accuracy: 'Control Accuracy', fineMotor: 'Fine Motor Score', replay: 'Play Again'
+  };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [timeLeft, setTimeLeft] = useState(25);
@@ -224,7 +241,7 @@ export const StarCatcherGame: React.FC<StarCatcherGameProps> = ({ onGameEnd }) =
         ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
         ctx.font = '10px JetBrains Mono';
         ctx.textAlign = 'center';
-        ctx.fillText('NO GO', obs.x, obs.y + 3);
+        ctx.fillText(copy.noGo, obs.x, obs.y + 3);
       }
 
       // Draw stars (targets)
@@ -283,7 +300,7 @@ export const StarCatcherGame: React.FC<StarCatcherGameProps> = ({ onGameEnd }) =
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
-  }, [isPlaying]);
+  }, [isPlaying, copy.noGo]);
 
   // Pointer movement listener for player control
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -345,17 +362,17 @@ export const StarCatcherGame: React.FC<StarCatcherGameProps> = ({ onGameEnd }) =
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-cyan-600 uppercase tracking-wider font-mono">
-                Independent Motor Experiment
+                {copy.tag}
               </span>
               <span className="text-[10px] font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200 px-2 py-0.5 rounded-full">
-                Canvas 60 FPS
+                {copy.fps}
               </span>
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-1">
-              Star Catcher
+              {copy.title}
             </h2>
             <p className="text-sm text-slate-500 mt-1 max-w-2xl">
-              Fine Motor Control Challenge. Move the glowing pointer to capture stars while avoiding red forbidden zones. Evaluates path velocity, targeting accuracy, and motor rhythm in a 25s session.
+              {copy.description}
             </p>
           </div>
         </div>
@@ -366,19 +383,19 @@ export const StarCatcherGame: React.FC<StarCatcherGameProps> = ({ onGameEnd }) =
         {/* HUD bar */}
         <div className="grid grid-cols-4 gap-3 p-3.5 bg-slate-900 text-white rounded-xl font-mono text-center">
           <div>
-            <span className="text-[10px] text-slate-400 block">Timer</span>
+            <span className="text-[10px] text-slate-400 block">{copy.timer}</span>
             <span className="text-xl font-bold text-cyan-400">{timeLeft}s</span>
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block">Score</span>
+            <span className="text-[10px] text-slate-400 block">{copy.score}</span>
             <span className="text-xl font-bold text-white">{score}</span>
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block">Combo</span>
+            <span className="text-[10px] text-slate-400 block">{copy.combo}</span>
             <span className="text-xl font-bold text-amber-400">x{combo}</span>
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block">Stars</span>
+            <span className="text-[10px] text-slate-400 block">{copy.stars}</span>
             <span className="text-xl font-bold text-emerald-400">{starsCollectedRef.current}</span>
           </div>
         </div>
@@ -397,9 +414,9 @@ export const StarCatcherGame: React.FC<StarCatcherGameProps> = ({ onGameEnd }) =
                 <Sparkles className="w-7 h-7" />
               </div>
               <div className="max-w-sm">
-                <h3 className="text-xl font-bold text-white font-mono">Star Catcher Challenge</h3>
+                <h3 className="text-xl font-bold text-white font-mono">{copy.challenge}</h3>
                 <p className="text-xs text-slate-300 mt-1">
-                  Hover your finger or mouse over the canvas to steer the glowing point. Collect stars to build combos.
+                  {copy.instruction}
                 </p>
               </div>
               <button
@@ -408,7 +425,7 @@ export const StarCatcherGame: React.FC<StarCatcherGameProps> = ({ onGameEnd }) =
                 className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold text-sm shadow-md transition-all font-mono"
               >
                 <Play className="w-4 h-4 fill-slate-950" />
-                <span>Start Challenge (25s)</span>
+                <span>{copy.start}</span>
               </button>
             </div>
           )}
@@ -421,31 +438,31 @@ export const StarCatcherGame: React.FC<StarCatcherGameProps> = ({ onGameEnd }) =
               <div className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-amber-500" />
                 <h3 className="text-base font-bold text-slate-900">
-                  Star Catcher Fine Motor Assessment
+                  {copy.result}
                 </h3>
               </div>
-              <span className="text-xs font-mono text-slate-400">Completed 25s</span>
+              <span className="text-xs font-mono text-slate-400">{copy.completed}</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div className="p-3 bg-white border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-400 font-mono block">Final Score</span>
+                <span className="text-[10px] text-slate-400 font-mono block">{copy.finalScore}</span>
                 <span className="text-xl font-bold text-slate-900 font-mono mt-0.5">{gameResult.score}</span>
               </div>
               <div className="p-3 bg-white border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-400 font-mono block">Target Hit Rate</span>
+                <span className="text-[10px] text-slate-400 font-mono block">{copy.hitRate}</span>
                 <span className="text-xl font-bold text-slate-900 font-mono mt-0.5">{gameResult.hitRate}%</span>
               </div>
               <div className="p-3 bg-white border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-400 font-mono block">Avg Acquisition</span>
+                <span className="text-[10px] text-slate-400 font-mono block">{copy.acquisition}</span>
                 <span className="text-xl font-bold text-slate-900 font-mono mt-0.5">{gameResult.averageReactionMs}ms</span>
               </div>
               <div className="p-3 bg-white border border-slate-200 rounded-xl">
-                <span className="text-[10px] text-slate-400 font-mono block">Control Accuracy</span>
+                <span className="text-[10px] text-slate-400 font-mono block">{copy.accuracy}</span>
                 <span className="text-xl font-bold text-slate-900 font-mono mt-0.5">{gameResult.controlAccuracy}/100</span>
               </div>
               <div className="p-3 bg-cyan-50 border border-cyan-200 rounded-xl">
-                <span className="text-[10px] text-cyan-800 font-mono block font-semibold">Fine Motor Score</span>
+                <span className="text-[10px] text-cyan-800 font-mono block font-semibold">{copy.fineMotor}</span>
                 <span className="text-xl font-bold text-cyan-700 font-mono mt-0.5">{gameResult.fineMotorScore}/100</span>
               </div>
             </div>
@@ -457,7 +474,7 @@ export const StarCatcherGame: React.FC<StarCatcherGameProps> = ({ onGameEnd }) =
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Play Again</span>
+                <span>{copy.replay}</span>
               </button>
             </div>
           </div>

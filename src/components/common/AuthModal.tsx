@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, User, LogIn, LogOut, Check, Shield, Sparkles, UserCheck } from 'lucide-react';
+import { X, LogOut, UserCheck, LockKeyhole } from 'lucide-react';
 import { UserProfile } from '../../types';
-import { authService, PRESET_DEMO_USERS } from '../../services/authService';
+import { authService } from '../../services/authService';
 import { useI18n } from '../../i18n/context';
 
 interface AuthModalProps {
@@ -19,23 +19,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const { locale } = useI18n();
   const [customName, setCustomName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'participant' | 'researcher'>('participant');
+  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSelectPreset = (user: UserProfile) => {
-    authService.loginPreset(user);
-    onUserChanged(user);
-    onClose();
-  };
-
-  const handleCustomLogin = (e: React.FormEvent) => {
+  const handleCustomLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customName.trim()) return;
-    const newUser = authService.login(customName, selectedRole);
-    onUserChanged(newUser);
-    setCustomName('');
-    onClose();
+    if (!customName.trim() || !password) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const newUser = await authService.login(customName, password, mode);
+      onUserChanged(newUser);
+      setCustomName('');
+      setPassword('');
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : (locale === 'zh' ? '无法连接局域网账号服务。' : 'Cannot reach the LAN account service.'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleLogout = () => {
@@ -57,7 +63,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {locale === 'zh' ? '用户身份与实验账号' : 'Account & Authentication'}
               </h3>
               <p className="text-[11px] text-slate-400">
-                {locale === 'zh' ? '支持受试人员身份切换及数据云端关联' : 'Switch participant ID or researcher profile'}
+                {locale === 'zh' ? '密码保护的受试者数据与管理员登录' : 'Password-protected participant and administrator access'}
               </p>
             </div>
           </div>
@@ -103,95 +109,55 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Quick 1-Click Preset Demo Accounts */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 block">
-              {locale === 'zh' ? '快速切换演示账号 (一键登入)' : 'Quick Preset Demo Profiles'}:
-            </label>
-            <div className="space-y-1.5">
-              {PRESET_DEMO_USERS.map(user => {
-                const isActive = currentUser?.id === user.id;
-                return (
-                  <button
-                    key={user.id}
-                    type="button"
-                    onClick={() => handleSelectPreset(user)}
-                    className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all ${
-                      isActive
-                        ? 'border-cyan-500 bg-cyan-50/50 shadow-xs'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xl">{user.avatar}</span>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900">{user.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          {user.participantCode} · {user.email}
-                        </div>
-                      </div>
-                    </div>
-                    {isActive ? (
-                      <span className="text-xs text-cyan-600 font-bold flex items-center gap-1">
-                        <Check className="w-4 h-4" />
-                        <span>{locale === 'zh' ? '当前' : 'Active'}</span>
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-400 hover:text-slate-600">
-                        {locale === 'zh' ? '登入' : 'Select'}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Custom Login / Registration Form */}
-          <form onSubmit={handleCustomLogin} className="space-y-3 pt-2 border-t border-slate-100">
-            <label className="text-xs font-bold text-slate-700 block">
-              {locale === 'zh' ? '或输入自定义受试者编号' : 'Or Custom Participant Login'}:
-            </label>
-
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={customName}
-                onChange={e => setCustomName(e.target.value)}
-                placeholder={locale === 'zh' ? '如: 实验组受试者 C-09' : 'e.g. Subject C-09'}
-                className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 bg-slate-50/50"
-              />
-              <button
-                type="submit"
-                disabled={!customName.trim()}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
-              >
-                {locale === 'zh' ? '登录' : 'Sign In'}
+          {/* Password login / registration */}
+          <form onSubmit={handleCustomLogin} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1 text-xs font-semibold">
+              <button type="button" onClick={() => setMode('login')} className={`rounded-lg px-3 py-2 transition-colors ${mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                {locale === 'zh' ? '密码登录' : 'Sign in'}
+              </button>
+              <button type="button" onClick={() => setMode('register')} className={`rounded-lg px-3 py-2 transition-colors ${mode === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                {locale === 'zh' ? '新受试者注册' : 'Register'}
               </button>
             </div>
 
-            <div className="flex items-center gap-4 text-xs text-slate-600">
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="role"
-                  checked={selectedRole === 'participant'}
-                  onChange={() => setSelectedRole('participant')}
-                  className="text-cyan-600 focus:ring-cyan-500"
-                />
-                <span>{locale === 'zh' ? '实验受试者' : 'Participant'}</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="role"
-                  checked={selectedRole === 'researcher'}
-                  onChange={() => setSelectedRole('researcher')}
-                  className="text-cyan-600 focus:ring-cyan-500"
-                />
-                <span>{locale === 'zh' ? '实验研究员' : 'Researcher'}</span>
-              </label>
+            <label className="text-xs font-bold text-slate-700 block">
+              {mode === 'register'
+                ? (locale === 'zh' ? '受试者编号' : 'Participant identifier')
+                : (locale === 'zh' ? '受试者编号或管理员用户名' : 'Participant ID or administrator username')}:
+            </label>
+
+            <input
+              type="text"
+              autoComplete="username"
+              value={customName}
+              onChange={e => setCustomName(e.target.value)}
+              placeholder={locale === 'zh' ? '如：SUBJ-C09' : 'e.g. SUBJ-C09'}
+              className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 bg-slate-50/50"
+            />
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <LockKeyhole className="w-3.5 h-3.5 text-cyan-700" />
+              {locale === 'zh' ? '密码（至少 8 位）' : 'Password (at least 8 characters)'}
+            </label>
+            <input
+              type="password"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 bg-slate-50/50"
+            />
+            {mode === 'register' && (
+              <p className="text-[11px] text-slate-500">{locale === 'zh' ? '注册后此编号只能使用该密码登录；管理员可在后台停用或重置密码。' : 'After registration, this identifier requires the same password. An administrator can disable the account or reset the password.'}</p>
+            )}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={!customName.trim() || password.length < 8 || isSubmitting}
+                className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
+              >
+                {isSubmitting ? (locale === 'zh' ? '验证中…' : 'Checking…') : (mode === 'register' ? (locale === 'zh' ? '注册账号' : 'Register') : (locale === 'zh' ? '登录' : 'Sign in'))}
+              </button>
             </div>
+            {error && <p className="text-xs text-rose-600">{error}</p>}
           </form>
         </div>
       </div>

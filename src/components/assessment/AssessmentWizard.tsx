@@ -7,7 +7,9 @@ import {
   ReactionMetrics, 
   TracingMetrics, 
   AssessmentReportData,
-  SubjectiveFatigueRecord
+  SubjectiveFatigueRecord,
+  SensorStatus,
+  IMUDataPoint
 } from '../../types';
 import { CalibrationStep } from './CalibrationStep';
 import { HandStabilityStep } from './HandStabilityStep';
@@ -18,21 +20,23 @@ import { FatigueChallengeStep } from './FatigueChallengeStep';
 import { SubjectiveAssessmentStep } from './SubjectiveAssessmentStep';
 import { calculateFatigueAssessment } from '../../utils/fatigueScoring';
 import { StorageService } from '../../services/storage';
-import { getSensorService } from '../../services/sensorSimulator';
-import { createDefaultStabilityMetrics } from '../../utils/signalProcessing';
-import { createDefaultTappingMetrics } from '../../utils/tappingAnalysis';
-import { createDefaultTracingMetrics } from '../../utils/tracingAnalysis';
-import { Check, ArrowRight, ShieldAlert, Sparkles } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
 
 interface AssessmentWizardProps {
   subjectId: string;
+  sensorStatus: SensorStatus;
+  currentData: IMUDataPoint | null;
+  onRequestImuAccess: () => Promise<boolean>;
   onComplete: (report: AssessmentReportData) => void;
   onCancel: () => void;
 }
 
 export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
   subjectId,
+  sensorStatus,
+  currentData,
+  onRequestImuAccess,
   onComplete,
   onCancel
 }) => {
@@ -46,8 +50,8 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
   const [baselineTracing, setBaselineTracing] = useState<TracingMetrics | null>(null);
 
   // Fatigue challenge specs
-  const [challengeDuration, setChallengeDuration] = useState<number>(30);
-  const [challengeTaps, setChallengeTaps] = useState<number>(138);
+  const [challengeDuration, setChallengeDuration] = useState<number | null>(null);
+  const [challengeTaps, setChallengeTaps] = useState<number | null>(null);
 
   // Collected Post-Fatigue Data
   const [postStability, setPostStability] = useState<HandStabilityMetrics | null>(null);
@@ -55,11 +59,8 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
   const [postReaction, setPostReaction] = useState<ReactionMetrics | null>(null);
   const [postTracing, setPostTracing] = useState<TracingMetrics | null>(null);
 
-  const sensor = getSensorService();
-
   // Step 0: Calibration Done
   const handleCalibrationComplete = () => {
-    sensor.setFatigueFactor(0.0);
     setCurrentStep(AssessmentStep.BASELINE_STABILITY);
   };
 
@@ -91,8 +92,6 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
   const handleFatigueChallengeComplete = (durationSec: number, totalTaps: number) => {
     setChallengeDuration(durationSec);
     setChallengeTaps(totalTaps);
-    // Increase synthetic micro-motion perturbation on sensor simulator
-    sensor.setFatigueFactor(0.7);
     setCurrentStep(AssessmentStep.POST_STABILITY);
   };
 
@@ -122,33 +121,21 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
 
   // Step 10: Subjective Fatigue Rating Done -> FINALIZE REPORT
   const handleSubjectiveComplete = (subjectiveRecord: SubjectiveFatigueRecord) => {
-    // Fallbacks if user skipped anything
-    const baseData: AssessmentBatteryData = {
-      stability: baselineStability || createDefaultStabilityMetrics(false),
-      tapping: baselineTapping || createDefaultTappingMetrics(false),
-      reaction: baselineReaction || {
-        trials: [],
-        meanReactionMs: 279,
-        medianReactionMs: 284,
-        bestReactionMs: 238,
-        worstReactionMs: 351,
-        missRate: 0
-      },
-      tracing: baselineTracing || createDefaultTracingMetrics(false)
-    };
+    if (!baselineStability || !baselineTapping || !baselineReaction || !baselineTracing || !postStability || !postTapping || !postReaction || !postTracing || challengeDuration === null || challengeTaps === null) {
+      return;
+    }
 
+    const baseData: AssessmentBatteryData = {
+      stability: baselineStability,
+      tapping: baselineTapping,
+      reaction: baselineReaction,
+      tracing: baselineTracing
+    };
     const postData: AssessmentBatteryData = {
-      stability: postStability || createDefaultStabilityMetrics(true),
-      tapping: postTapping || createDefaultTappingMetrics(true),
-      reaction: postReaction || {
-        trials: [],
-        meanReactionMs: 334,
-        medianReactionMs: 337,
-        bestReactionMs: 318,
-        worstReactionMs: 388,
-        missRate: 0
-      },
-      tracing: postTracing || createDefaultTracingMetrics(true)
+      stability: postStability,
+      tapping: postTapping,
+      reaction: postReaction,
+      tracing: postTracing
     };
 
     // Calculate final scores:
@@ -172,23 +159,8 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
     // Persist subjective fatigue record
     StorageService.saveSubjectiveFatigueRecord(subjectiveRecord);
 
-    // Reset sensor back to normal resting
-    sensor.setFatigueFactor(0.0);
-
     // Transition to report view
     onComplete(report);
-  };
-
-  const handleSkipSubjective = () => {
-    const defaultRecord: SubjectiveFatigueRecord = {
-      id: `SUB-${Date.now().toString(36).toUpperCase()}`,
-      timestamp: Date.now(),
-      rating: 5,
-      level: 'moderate',
-      sensations: [],
-      note: locale === 'zh' ? '受试者未作自评 (以中位数记录)' : 'Participant skipped self-rating (recorded as neutral)'
-    };
-    handleSubjectiveComplete(defaultRecord);
   };
 
   // Step breadcrumb helper: 测验1 (基准 4项) + 疲劳诱发 + 测验2 (复测 4项) + 疲劳自评 (多维指标采集)
@@ -312,14 +284,21 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
       {/* Dynamic Step Component Rendering */}
       <div>
         {currentStep === AssessmentStep.CALIBRATION && (
-          <CalibrationStep onComplete={handleCalibrationComplete} />
+          <CalibrationStep
+            sensorStatus={sensorStatus}
+            currentData={currentData}
+            onRequestImuAccess={onRequestImuAccess}
+            onComplete={handleCalibrationComplete}
+          />
         )}
 
         {currentStep === AssessmentStep.BASELINE_STABILITY && (
           <HandStabilityStep
+            sensorStatus={sensorStatus}
+            currentData={currentData}
+            onRequestImuAccess={onRequestImuAccess}
             isPostFatigue={false}
             onComplete={handleBaselineStabilityComplete}
-            onSkip={() => handleBaselineStabilityComplete(createDefaultStabilityMetrics(false))}
           />
         )}
 
@@ -328,7 +307,6 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
             isPostFatigue={false}
             onComplete={handleBaselineTappingComplete}
             onBack={() => setCurrentStep(AssessmentStep.BASELINE_STABILITY)}
-            onSkip={() => handleBaselineTappingComplete(createDefaultTappingMetrics(false))}
           />
         )}
 
@@ -337,14 +315,6 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
             isPostFatigue={false}
             onComplete={handleBaselineReactionComplete}
             onBack={() => setCurrentStep(AssessmentStep.BASELINE_TAPPING)}
-            onSkip={() => handleBaselineReactionComplete({
-              trials: [],
-              meanReactionMs: 279,
-              medianReactionMs: 284,
-              bestReactionMs: 238,
-              worstReactionMs: 351,
-              missRate: 0
-            })}
           />
         )}
 
@@ -353,22 +323,22 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
             isPostFatigue={false}
             onComplete={handleBaselineTracingComplete}
             onBack={() => setCurrentStep(AssessmentStep.BASELINE_REACTION)}
-            onSkip={() => handleBaselineTracingComplete(createDefaultTracingMetrics(false))}
           />
         )}
 
         {currentStep === AssessmentStep.FATIGUE_CHALLENGE && (
           <FatigueChallengeStep
             onComplete={handleFatigueChallengeComplete}
-            onSkip={() => handleFatigueChallengeComplete(30, 138)}
           />
         )}
 
         {currentStep === AssessmentStep.POST_STABILITY && (
           <HandStabilityStep
+            sensorStatus={sensorStatus}
+            currentData={currentData}
+            onRequestImuAccess={onRequestImuAccess}
             isPostFatigue={true}
             onComplete={handlePostStabilityComplete}
-            onSkip={() => handlePostStabilityComplete(createDefaultStabilityMetrics(true))}
           />
         )}
 
@@ -377,7 +347,6 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
             isPostFatigue={true}
             onComplete={handlePostTappingComplete}
             onBack={() => setCurrentStep(AssessmentStep.POST_STABILITY)}
-            onSkip={() => handlePostTappingComplete(createDefaultTappingMetrics(true))}
           />
         )}
 
@@ -386,14 +355,6 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
             isPostFatigue={true}
             onComplete={handlePostReactionComplete}
             onBack={() => setCurrentStep(AssessmentStep.POST_TAPPING)}
-            onSkip={() => handlePostReactionComplete({
-              trials: [],
-              meanReactionMs: 334,
-              medianReactionMs: 337,
-              bestReactionMs: 318,
-              worstReactionMs: 388,
-              missRate: 0
-            })}
           />
         )}
 
@@ -402,7 +363,6 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
             isPostFatigue={true}
             onComplete={handlePostTracingComplete}
             onBack={() => setCurrentStep(AssessmentStep.POST_REACTION)}
-            onSkip={() => handlePostTracingComplete(createDefaultTracingMetrics(true))}
           />
         )}
 
@@ -410,7 +370,6 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
           <SubjectiveAssessmentStep
             onComplete={handleSubjectiveComplete}
             onBack={() => setCurrentStep(AssessmentStep.POST_TRACING)}
-            onSkip={handleSkipSubjective}
             initialRating={5}
           />
         )}

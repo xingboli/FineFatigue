@@ -9,14 +9,12 @@ interface FingerTappingStepProps {
   isPostFatigue?: boolean;
   onComplete: (metrics: TappingMetrics) => void;
   onBack?: () => void;
-  onSkip?: () => void;
 }
 
 export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
   isPostFatigue = false,
   onComplete,
-  onBack,
-  onSkip
+  onBack
 }) => {
   const { locale } = useI18n();
   const [stage, setStage] = useState<'idle' | 'recording' | 'finished'>('idle');
@@ -30,6 +28,7 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
   const lastTapTimeRef = useRef<number>(0);
   const tapsRef = useRef<TapRecord[]>([]);
   const [calculatedMetrics, setCalculatedMetrics] = useState<TappingMetrics | null>(null);
+  const [collectionError, setCollectionError] = useState(false);
 
   // 15 seconds timer
   useEffect(() => {
@@ -45,7 +44,11 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
       }, 1000);
       return () => clearTimeout(timer);
     } else {
-      // Completed 15s
+      if (tapsRef.current.length < 2) {
+        setCollectionError(true);
+        setStage('idle');
+        return;
+      }
       const metrics = analyzeTapping(tapsRef.current, 15000);
       setCalculatedMetrics(metrics);
       setStage('finished');
@@ -54,6 +57,7 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
 
   const handleStart = () => {
     tapsRef.current = [];
+    setCollectionError(false);
     setTapCount(0);
     setCurrentRate(0);
     setTimeLeft(15);
@@ -91,16 +95,12 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
   const handleRetry = () => {
     tapsRef.current = [];
     setCalculatedMetrics(null);
+    setCollectionError(false);
     setStage('idle');
   };
 
   const handleProceed = () => {
-    if (calculatedMetrics) {
-      onComplete(calculatedMetrics);
-    } else {
-      const m = analyzeTapping(tapsRef.current, 15000);
-      onComplete(m);
-    }
+    if (calculatedMetrics) onComplete(calculatedMetrics);
   };
 
   return (
@@ -141,24 +141,13 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
                 {locale === 'zh' ? '返回上一步' : 'Back'}
               </button>
             )}
-            {onSkip && (
-              <button
-                type="button"
-                onClick={() => {
-                  const m = analyzeTapping([], 15000);
-                  onComplete(m);
-                }}
-                className="px-3 py-2 text-xs text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium"
-              >
-                {locale === 'zh' ? '跳过此项' : 'Skip Test'}
-              </button>
-            )}
           </div>
         </div>
       </div>
 
       {stage !== 'finished' ? (
         <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-6">
+          {collectionError && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{locale === 'zh' ? '未记录到足够的真实敲击，本次结果已丢弃。请重新完成测试。' : 'Too few taps were recorded. This attempt was discarded; complete the test again.'}</div>}
           {/* Live Stats Bar */}
           <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 border border-slate-200/80 rounded-xl font-mono">
             <div className="text-center">
@@ -367,7 +356,8 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
               <button
                 type="button"
                 onClick={handleProceed}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold transition-all shadow-xs"
+                disabled={!calculatedMetrics}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold transition-all shadow-xs disabled:opacity-50"
               >
                 <span>{locale === 'zh' ? '继续下一步：视觉反应时测试' : 'Continue to Reaction Test'}</span>
                 <ArrowRight className="w-4 h-4" />

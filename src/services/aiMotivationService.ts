@@ -279,12 +279,11 @@ export class AiMotivationService {
   /**
    * Determine fatigue tier from assessment score or subjective rating
    */
-  static determineTier(score: number, subjectiveRating?: number): FatigueLevelTier {
-    // If subjective rating exists and is high, factor it in
-    if (subjectiveRating && subjectiveRating >= 8) return 'severe';
-    if (subjectiveRating && subjectiveRating >= 7) return 'high';
-    if (score >= 82 && (!subjectiveRating || subjectiveRating <= 3)) return 'optimal';
-    if (score >= 68 && (!subjectiveRating || subjectiveRating <= 5)) return 'mild';
+  static determineTier(score: number): FatigueLevelTier {
+    // Subjective self-rating is an independent experimental observation. It is
+    // intentionally excluded from objective fatigue scoring and AI tiering.
+    if (score >= 82) return 'optimal';
+    if (score >= 68) return 'mild';
     if (score >= 52) return 'moderate';
     if (score >= 38) return 'high';
     return 'severe';
@@ -296,7 +295,7 @@ export class AiMotivationService {
    */
   static async getAdvice(request: MotivationRequest): Promise<MotivationMessage> {
     const lang = request.language || 'zh';
-    const tier = this.determineTier(request.overallScore, request.subjectiveRating);
+    const tier = this.determineTier(request.overallScore);
 
     // Reserved LLM API Interface hook:
     // Future LLM endpoint can be configured via environment or custom proxy
@@ -326,13 +325,9 @@ export class AiMotivationService {
    * Can be configured with external API URL or internal /api/motivation endpoint.
    */
   private static async callLlmApi(request: MotivationRequest, tier: FatigueLevelTier): Promise<MotivationMessage | null> {
-    // Check if an external LLM endpoint is provided in runtime env or window config
-    const endpoint = (window as any)?.__FINEFATIGUE_LLM_ENDPOINT__ || '/api/ai/motivation';
-
-    // If no endpoint configured or in static preview, return null to trigger graceful local fallback
-    if (typeof window === 'undefined' || !(window as any)?.__ENABLE_REMOTE_LLM__) {
-      return null;
-    }
+    // The LAN server owns the Gemini key. The browser only sends the minimal
+    // assessment context to its same-origin endpoint and never sees the key.
+    const endpoint = '/api/ai/motivation';
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s quick timeout

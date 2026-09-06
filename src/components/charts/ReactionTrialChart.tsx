@@ -4,13 +4,13 @@ import { useI18n } from '../../i18n/context';
 
 interface ReactionTrialChartProps {
   trials: ReactionTrial[];
-  medianReactionMs?: number;
+  medianReactionMs: number;
   height?: number;
 }
 
 export const ReactionTrialChart: React.FC<ReactionTrialChartProps> = ({
   trials,
-  medianReactionMs = 284,
+  medianReactionMs,
   height = 140
 }) => {
   const { locale } = useI18n();

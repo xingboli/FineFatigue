@@ -10,13 +10,11 @@ import {
   ArrowRight,
   ShieldCheck,
   ChevronRight,
-  Sparkles,
   Sliders,
   HeartHandshake
 } from 'lucide-react';
 import { AssessmentReportData, SensorStatus, SubjectiveFatigueRecord } from '../types';
 import { useI18n } from '../i18n/context';
-import { SubjectiveFatigueBlockSlider } from '../components/common/SubjectiveFatigueBlockSlider';
 import { FatigueCareCard } from '../components/common/FatigueCareCard';
 import { HistoryTimeComparisonChart } from '../components/charts/HistoryTimeComparisonChart';
 
@@ -28,7 +26,6 @@ interface OverviewPageProps {
   onStartAssessment: () => void;
   onOpenReport: (report: AssessmentReportData) => void;
   onNavigateToSessions: () => void;
-  onOpenStarCatcher: () => void;
 }
 
 export const OverviewPage: React.FC<OverviewPageProps> = ({
@@ -38,21 +35,19 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   subjectiveRecords = [],
   onStartAssessment,
   onOpenReport,
-  onNavigateToSessions,
-  onOpenStarCatcher
+  onNavigateToSessions
 }) => {
   const { t, locale } = useI18n();
   const latestSession = sessions[0] || null;
-  const latestSubjective = subjectiveRecords[0]?.rating || (latestSession ? Math.round(latestSession.fatigueIndex / 10) : 4);
   const avgFatigue = sessions.length > 0
     ? Math.round(sessions.reduce((acc, s) => acc + s.fatigueIndex, 0) / sessions.length)
-    : 52;
+    : null;
   const avgStability = sessions.length > 0
     ? Math.round(sessions.reduce((acc, s) => acc + s.baseline.stability.stabilityScore, 0) / sessions.length)
-    : 81;
+    : null;
   const avgReaction = sessions.length > 0
     ? Math.round(sessions.reduce((acc, s) => acc + s.baseline.reaction.medianReactionMs, 0) / sessions.length)
-    : 284;
+    : null;
 
   const getLevelLabel = (level: string) => {
     if (level === 'High') return t.reports.levelHigh;
@@ -89,15 +84,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
               type="button"
-              onClick={onOpenStarCatcher}
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors"
-            >
-              <Sparkles className="w-4 h-4 text-cyan-600" />
-              <span>{t.overview.btnDemo}</span>
-            </button>
-
-            <button
-              type="button"
               onClick={onStartAssessment}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold shadow-xs hover:shadow-sm transition-all"
             >
@@ -115,14 +101,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
           <div>
             <span className="text-slate-400 block text-[10px] uppercase">{t.overview.imuSensor}</span>
-            <span className="text-emerald-700 font-semibold text-sm flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              {sensorStatus.connected ? t.common.connected : t.common.offline} ({sensorStatus.type === 'simulator' ? t.common.simulated : t.common.hardware})
+            <span className={`font-semibold text-sm flex items-center gap-1.5 ${sensorStatus.connected ? 'text-emerald-700' : 'text-amber-700'}`}>
+              <span className={`w-2 h-2 rounded-full ${sensorStatus.connected ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+              {sensorStatus.connected
+                ? `${t.common.connected} (${t.common.hardware})`
+                : (locale === 'zh' ? 'IMU 传感器不可用（不会生成替代数据）' : 'IMU unavailable (no substitute data is generated)')}
             </span>
           </div>
           <div>
             <span className="text-slate-400 block text-[10px] uppercase">{t.overview.samplingRate}</span>
-            <span className="text-slate-800 font-semibold text-sm">{sensorStatus.samplingRate} Hz</span>
+            <span className="text-slate-800 font-semibold text-sm">{sensorStatus.connected ? `${sensorStatus.samplingRate} Hz` : '--'}</span>
           </div>
           <div>
             <span className="text-slate-400 block text-[10px] uppercase">{t.overview.touchEngine}</span>
@@ -141,16 +129,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-slate-900 font-mono">
-              {latestSession ? latestSession.fatigueIndex : 64}
+              {latestSession ? latestSession.fatigueIndex : '--'}
             </span>
             <span className="text-xs text-slate-400 font-mono">/ 100</span>
           </div>
           <div className="mt-2 flex items-center gap-2">
             <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-              {latestSession ? getLevelLabel(latestSession.fatigueLevel) : t.reports.levelModerate}
+              {latestSession ? getLevelLabel(latestSession.fatigueLevel) : (locale === 'zh' ? '暂无数据' : 'No data')}
             </span>
             <span className="text-[11px] text-slate-400 font-mono">
-              {latestSession?.dateString || 'Today 14:32'}
+              {latestSession?.dateString || '--'}
             </span>
           </div>
         </div>
@@ -180,7 +168,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-slate-900 font-mono">
-              {avgStability}
+              {avgStability ?? '--'}
             </span>
             <span className="text-xs text-slate-400 font-mono">/ 100</span>
           </div>
@@ -197,7 +185,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-slate-900 font-mono">
-              {avgReaction}
+              {avgReaction ?? '--'}
             </span>
             <span className="text-xs text-slate-400 font-mono">ms</span>
           </div>
@@ -207,20 +195,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         </div>
       </div>
 
-      {/* Real-time Subjective Fatigue Rating & AI Comfort / Motivation Guidance */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Sliding Block Subjective Assessment */}
-        <SubjectiveFatigueBlockSlider
-          initialRating={latestSubjective}
-          linkedSessionId={latestSession?.id}
-        />
-
-        {/* AI Targeted Motivation / Comfort Card */}
-        <FatigueCareCard
-          overallScore={latestSession ? Math.round(100 - latestSession.fatigueIndex) : 75}
-          subjectiveRating={latestSubjective}
-        />
-      </div>
+      {/* AI advice uses objective test measurements only. Subjective fatigue is
+          collected once at the end of the assessment and retained in reports. */}
+      {latestSession && <FatigueCareCard overallScore={Math.round(100 - latestSession.fatigueIndex)} />}
 
       {/* Historical Time Comparison Chart (Line / Bar) */}
       <HistoryTimeComparisonChart
@@ -368,4 +345,3 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     </div>
   );
 };
-
