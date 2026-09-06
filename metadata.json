@@ -1,0 +1,6 @@
+{
+  "name": "FineFatigue",
+  "description": "Multimodal Hand Fatigue & Fine Motor Assessment System - an experimental data collection and motor performance platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
