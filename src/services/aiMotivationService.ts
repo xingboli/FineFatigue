@@ -290,15 +290,14 @@ export class AiMotivationService {
   }
 
   /**
-   * Get personalized advice. Attempts LLM API if configured, otherwise falls back gracefully
-   * to targeted local domain rules.
+   * Get personalized advice. Attempts the configured LAN AI endpoint, otherwise
+   * falls back gracefully to targeted local domain rules.
    */
   static async getAdvice(request: MotivationRequest): Promise<MotivationMessage> {
     const lang = request.language || 'zh';
     const tier = this.determineTier(request.overallScore);
 
-    // Reserved LLM API Interface hook:
-    // Future LLM endpoint can be configured via environment or custom proxy
+    // The same-origin LAN endpoint owns the provider configuration and key.
     try {
       const llmResult = await this.callLlmApi(request, tier);
       if (llmResult) {
@@ -321,11 +320,10 @@ export class AiMotivationService {
   }
 
   /**
-   * Reserved LLM API interface.
-   * Can be configured with external API URL or internal /api/motivation endpoint.
+   * Same-origin LAN AI interface.
    */
   private static async callLlmApi(request: MotivationRequest, tier: FatigueLevelTier): Promise<MotivationMessage | null> {
-    // The LAN server owns the Gemini key. The browser only sends the minimal
+    // The LAN server owns the MiMo key. The browser only sends the minimal
     // assessment context to its same-origin endpoint and never sees the key.
     const endpoint = '/api/ai/motivation';
 

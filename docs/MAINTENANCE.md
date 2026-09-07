@@ -1,0 +1,93 @@
+# FineFatigue 开发与维护说明
+
+## 1. 运行结构
+
+```text
+移动端浏览器
+  ├─ React UI / DeviceMotion / LocalStorage
+  └─ 同源 fetch: /api/*
+           │
+           ▼
+Express（server.mjs）
+  ├─ 认证、会话、管理员 API
+  ├─ 合并同步与 CSV 导出
+  ├─ MiMo API 代理
+  └─ data/finefatigue-store.json
+           │
+           ▼
+Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
+```
+
+浏览器不会直接持有 MiMo 密钥；仅服务端从 `.env` 读取密钥并向 MiMo 发起请求。
+
+## 2. 主要目录和职责
+
+| 位置 | 职责 |
+| --- | --- |
+| `src/App.tsx` | 顶层状态、页面切换、IMU 订阅、评测完成后的同步触发。 |
+| `src/components/assessment/` | 评测向导与每个采集步骤。`AssessmentWizard.tsx` 固定整个实验顺序。 |
+| `src/components/charts/` | 波形、频谱、敲击、反应、描摹可视化。 |
+| `src/pages/` | 概览、监视、报告、历史、设置与管理员界面。 |
+| `src/services/sensorAdapter.ts` | 真实 `DeviceMotion` 采集与权限状态；没有模拟回退。 |
+| `src/services/storage.ts` | 浏览器 LocalStorage 的会话、自评、设置读写。 |
+| `src/services/authService.ts` | 浏览器登录令牌及认证状态。 |
+| `src/services/cloudSyncService.ts` | 受试者向 `/api/sync` 的同步、备份导入导出。 |
+| `src/services/aiMotivationService.ts` | AI 建议请求及本地规则降级。 |
+| `src/utils/` | 指标计算、信号处理及疲劳评分。 |
+| `server.mjs` | Express API、账户密码哈希、内存会话、JSON 存储、CSV 导出、MiMo 代理、静态站点服务。 |
+
+## 3. 前后端交互
+
+前端只请求相对路径 `/api/*`，因此生产环境应由同一个 Express 服务同时托管前端 `dist/` 与 API。
+
+| 方法与路径 | 调用方 | 作用 |
+| --- | --- | --- |
+| `GET /api/health` | 运维检查 | 返回服务可用状态。 |
+| `POST /api/auth/login` | 账号面板 | 登录或注册；注册请求使用 `mode: "register"`。 |
+| `GET /api/auth/me`、`POST /api/auth/logout` | 认证服务 | 恢复或结束浏览器会话。 |
+| `POST /api/sync` | 受试者同步服务 | 合并会话、自评与设置；需要受试者 Bearer token。 |
+| `GET /api/admin/accounts` | 管理员页 | 获取受试者账户摘要。 |
+| `PATCH /api/admin/accounts/:id` | 管理员页 | 审核/停用、报酬记录、密码重置。 |
+| `GET /api/admin/export/sessions.csv` | 管理员页 | 导出会话 CSV。 |
+| `GET /api/admin/export/users.csv` | 管理员页 | 导出受试者 CSV。 |
+| `POST /api/ai/motivation` | 疲劳关怀服务 | 服务端调用 MiMo，返回结构化建议。 |
+
+管理员与受试者接口使用 `Authorization: Bearer <token>`。令牌只存在服务端内存 12 小时；服务重启后所有登录会话失效，用户需要重新登录。
+
+## 4. 数据存储与备份
+
+- 浏览器：会话、自评、设置、活动报告、认证令牌及同步状态保存在 LocalStorage。
+- 服务端：`data/finefatigue-store.json` 保存账户、密码哈希、会话、自评、设置和报酬记录；先写入临时文件后再重命名。
+- 服务端数据目录默认不入 Git。部署或迁移前应在服务停止后复制该 JSON 文件，并限制文件系统访问权限。
+- CSV 仅导出选定的会话派生字段和受试者管理字段；完整会话中的波形与描摹点保存在会话 JSON 内。
+
+服务端 JSON 不提供加密、版本迁移、数据库锁或多进程并发控制。不要让多个 `npm start` 实例共享同一个数据文件。
+
+## 5. 配置和部署要点
+
+参见根目录 `.env.example`。必须重点保护：
+
+- `ADMIN_USERNAME` / `ADMIN_PASSWORD`：管理员账户；未配置则管理员不能登录。
+- `MIMO_API_KEY`：仅服务端使用，绝不能以 `VITE_*` 变量或前端代码暴露。
+- `PORT`：默认 `3000`；修改后同步更新 Tailscale Serve 的代理目标。
+
+推荐部署步骤：先执行 `npm run build`，再使用 `npm start`。若通过 Tailscale Serve 暴露，确认其根路径指向运行中的 `http://127.0.0.1:<PORT>`，并以 `tailscale serve status` 复核。修改 `.env`、更新代码或更新构建后，都需要重启服务。
+
+## 6. 后续开发注意事项
+
+1. **保持真实采集原则。** 不要为“好看”或开发便利在真实实验页面回填 IMU 模拟波形。无事件时必须保持不可用或未采集状态。
+2. **不要把主观自评纳入当前客观指数。** 评分逻辑在 `src/utils/fatigueScoring.ts`；如实验方案变化，应同时更新类型、导出字段、报告文案与协议文档。
+3. **保护身份与数据。** 新接口必须保留相应认证/角色校验；导出与日志不要包含明文密码、令牌或 API Key。
+4. **同步为合并而非事务。** 当前按记录 ID 与时间戳合并，没有服务器端删除语义或冲突审计。修改同步数据模型时需先设计迁移和删除策略。
+5. **评测顺序具有实验含义。** 调整 `AssessmentWizard` 步骤会改变数据可比性；同时更新 PRD、用户指南、会话类型和 CSV 字段。
+6. **移动浏览器差异明显。** iOS 授权必须由用户手势触发，设备/浏览器/省电策略会影响事件频率。测试应覆盖目标手机与 HTTPS 访问路径。
+
+## 7. 已知限制与待处理事项
+
+- 当前数据层是单机 JSON，未实现数据库、备份自动化、并发写入控制、静态文件持久化服务或灾难恢复。
+- 服务端内存会话会在重启后失效；未实现密码找回、登录限流、审计日志、HTTPS 以外的传输策略或细粒度管理员角色。
+- 删除历史记录只修改浏览器缓存；下一次同步可能从服务端合并回已同步记录。若需要真正删除，应新增受控的服务端删除 API 和审计策略。
+- 管理员导出的数据带有受试者编号，属于假名化而不是自动匿名化；导出前应根据实验伦理要求处理。
+- `CloudSyncModal` 的界面名称仍使用“云端同步”，但当前实现是同源 LAN 服务同步，不连接第三方云数据库。
+- `src/services/aiMotivationService.ts` 当前按扁平字段读取 AI 响应，而 `server.mjs` 返回 `{ message: { ... } }` 结构。服务端 MiMo 调用可成功返回结构化内容，但前端字段映射需要对齐后再将远程建议视为稳定的 UI 功能；不可用时本地规则仍是预期降级路径。
+- Star Catcher 结果仅显示在小游戏页面，尚未纳入评测会话、同步或 CSV。
