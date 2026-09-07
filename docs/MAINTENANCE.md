@@ -26,13 +26,17 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 | --- | --- |
 | `src/App.tsx` | 顶层状态、页面切换、IMU 订阅、评测完成后的同步触发。 |
 | `src/components/assessment/` | 评测向导与每个采集步骤。`AssessmentWizard.tsx` 固定整个实验顺序。 |
+| `src/components/cognition/` | 空间记忆卡片、实际点击流程和认知结果展示。`MemoryGame.tsx` 管理随机牌组、配对锁定和交互采集。 |
 | `src/components/charts/` | 波形、频谱、敲击、反应、描摹可视化。 |
+| `src/pages/CognitionMemoryPage.tsx` | 认知任务说明、开始/返回、结果历史和详情入口。 |
 | `src/pages/` | 概览、监视、报告、历史、设置与管理员界面。 |
 | `src/services/sensorAdapter.ts` | 真实 `DeviceMotion` 采集与权限状态；没有模拟回退。 |
 | `src/services/storage.ts` | 浏览器 LocalStorage 的会话、自评、设置读写。 |
+| `src/services/cognitionStorage.ts` | 浏览器 LocalStorage 的认知任务完整结果读写。 |
 | `src/services/authService.ts` | 浏览器登录令牌及认证状态。 |
 | `src/services/cloudSyncService.ts` | 受试者向 `/api/sync` 的同步、备份导入导出。 |
 | `src/services/aiMotivationService.ts` | AI 建议请求及本地规则降级。 |
+| `src/utils/cognitionMetrics.ts` | 从实际配对尝试计算准确率、响应时间、前后半程变化和透明的任务指标。 |
 | `src/utils/` | 指标计算、信号处理及疲劳评分。 |
 | `server.mjs` | Express API、账户密码哈希、内存会话、JSON 存储、CSV 导出、MiMo 代理、静态站点服务。 |
 
@@ -45,21 +49,22 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 | `GET /api/health` | 运维检查 | 返回服务可用状态。 |
 | `POST /api/auth/login` | 账号面板 | 登录或注册；注册请求使用 `mode: "register"`。 |
 | `GET /api/auth/me`、`POST /api/auth/logout` | 认证服务 | 恢复或结束浏览器会话。 |
-| `POST /api/sync` | 受试者同步服务 | 合并会话、自评与设置；需要受试者 Bearer token。 |
+| `POST /api/sync` | 受试者同步服务 | 合并会话、自评、认知任务结果与设置；需要受试者 Bearer token。 |
 | `GET /api/admin/accounts` | 管理员页 | 获取受试者账户摘要。 |
 | `PATCH /api/admin/accounts/:id` | 管理员页 | 审核/停用、报酬记录、密码重置。 |
 | `GET /api/admin/export/sessions.csv` | 管理员页 | 导出会话 CSV。 |
 | `GET /api/admin/export/users.csv` | 管理员页 | 导出受试者 CSV。 |
+| `GET /api/admin/export/cognition.csv` | 管理员页 | 导出认知任务汇总指标 CSV。 |
 | `POST /api/ai/motivation` | 疲劳关怀服务 | 服务端调用 MiMo，返回结构化建议。 |
 
 管理员与受试者接口使用 `Authorization: Bearer <token>`。令牌只存在服务端内存 12 小时；服务重启后所有登录会话失效，用户需要重新登录。
 
 ## 4. 数据存储与备份
 
-- 浏览器：会话、自评、设置、活动报告、认证令牌及同步状态保存在 LocalStorage。
-- 服务端：`data/finefatigue-store.json` 保存账户、密码哈希、会话、自评、设置和报酬记录；先写入临时文件后再重命名。
+- 浏览器：会话、自评、认知任务结果、设置、活动报告、认证令牌及同步状态保存在 LocalStorage。
+- 服务端：`data/finefatigue-store.json` 保存账户、密码哈希、会话、自评、认知任务结果、设置和报酬记录；先写入临时文件后再重命名。
 - 服务端数据目录默认不入 Git。部署或迁移前应在服务停止后复制该 JSON 文件，并限制文件系统访问权限。
-- CSV 仅导出选定的会话派生字段和受试者管理字段；完整会话中的波形与描摹点保存在会话 JSON 内。
+- CSV 仅导出选定的会话派生字段、受试者管理字段或认知汇总指标；完整会话中的波形与描摹点、完整认知任务的点击/尝试数组保存在相应 JSON 记录内。
 
 服务端 JSON 不提供加密、版本迁移、数据库锁或多进程并发控制。不要让多个 `npm start` 实例共享同一个数据文件。
 
@@ -80,7 +85,8 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 3. **保护身份与数据。** 新接口必须保留相应认证/角色校验；导出与日志不要包含明文密码、令牌或 API Key。
 4. **同步为合并而非事务。** 当前按记录 ID 与时间戳合并，没有服务器端删除语义或冲突审计。修改同步数据模型时需先设计迁移和删除策略。
 5. **评测顺序具有实验含义。** 调整 `AssessmentWizard` 步骤会改变数据可比性；同时更新 PRD、用户指南、会话类型和 CSV 字段。
-6. **移动浏览器差异明显。** iOS 授权必须由用户手势触发，设备/浏览器/省电策略会影响事件频率。测试应覆盖目标手机与 HTTPS 访问路径。
+6. **认知数据必须来自交互。** 保留 `MemoryGame` 对随机牌组、一次两张选择和错误配对期间输入锁定的约束；不要在仪表盘、历史或导出中制造演示记录。若调整指标公式，应同步更新 `cognitionMetrics.ts`、CSV 字段、结果说明与实验协议。
+7. **移动浏览器差异明显。** iOS 授权必须由用户手势触发，设备/浏览器/省电策略会影响事件频率。测试应覆盖目标手机与 HTTPS 访问路径。
 
 ## 7. 已知限制与待处理事项
 
@@ -91,3 +97,4 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 - `CloudSyncModal` 的界面名称仍使用“云端同步”，但当前实现是同源 LAN 服务同步，不连接第三方云数据库。
 - `src/services/aiMotivationService.ts` 当前按扁平字段读取 AI 响应，而 `server.mjs` 返回 `{ message: { ... } }` 结构。服务端 MiMo 调用可成功返回结构化内容，但前端字段映射需要对齐后再将远程建议视为稳定的 UI 功能；不可用时本地规则仍是预期降级路径。
 - Star Catcher 结果仅显示在小游戏页面，尚未纳入评测会话、同步或 CSV。
+- 认知任务目前使用浏览器 LocalStorage 和单机同步 JSON；没有服务端实时审计、独立删除接口、常模数据库或医学解释。管理员认知 CSV 是汇总指标导出，不含逐次点击事件。

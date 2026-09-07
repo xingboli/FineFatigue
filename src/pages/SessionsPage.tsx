@@ -1,23 +1,27 @@
 import React from 'react';
 import { FileText, ArrowRight, Trash2, Calendar, User, Clock, ShieldCheck, Plus } from 'lucide-react';
-import { AssessmentReportData, SubjectiveFatigueRecord } from '../types';
+import { AssessmentReportData, CognitionMemoryResult, SubjectiveFatigueRecord } from '../types';
 import { useI18n } from '../i18n/context';
 import { HistoryTimeComparisonChart } from '../components/charts/HistoryTimeComparisonChart';
 
 interface SessionsPageProps {
   sessions: AssessmentReportData[];
   subjectiveRecords?: SubjectiveFatigueRecord[];
+  cognitionResults?: CognitionMemoryResult[];
   onOpenReport: (report: AssessmentReportData) => void;
   onDeleteSession: (id: string) => void;
   onStartNewAssessment: () => void;
+  onOpenCognition: (result?: CognitionMemoryResult) => void;
 }
 
 export const SessionsPage: React.FC<SessionsPageProps> = ({
   sessions,
   subjectiveRecords = [],
+  cognitionResults = [],
   onOpenReport,
   onDeleteSession,
-  onStartNewAssessment
+  onStartNewAssessment,
+  onOpenCognition
 }) => {
   const { t, locale } = useI18n();
 
@@ -66,6 +70,11 @@ export const SessionsPage: React.FC<SessionsPageProps> = ({
           onSelectSession={onOpenReport}
         />
       )}
+
+      <div className="bg-white rounded-2xl border border-violet-200/80 shadow-xs overflow-hidden">
+        <div className="p-5 border-b border-violet-100 flex items-center justify-between gap-4"><div><div className="text-[11px] font-mono text-violet-700 uppercase tracking-wider">{locale === 'zh' ? '认知与记忆' : 'Cognition & Memory'}</div><h2 className="text-base font-bold text-slate-900 mt-1">{locale === 'zh' ? '空间记忆测试记录' : 'Spatial memory test records'}</h2><p className="text-xs text-slate-500 mt-1">{locale === 'zh' ? '仅包含用户实际完成的本地交互测试。' : 'Contains only completed local interaction tests.'}</p></div><button type="button" onClick={onOpenCognition} className="shrink-0 px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold">{locale === 'zh' ? '打开测试' : 'Open test'}</button></div>
+        {cognitionResults.length ? <div className="divide-y divide-slate-100">{cognitionResults.slice(0, 6).map(result => <button key={result.id} type="button" onClick={() => onOpenCognition(result)} className="w-full p-4 text-left hover:bg-violet-50/40 flex items-center justify-between gap-4"><div><div className="text-sm font-semibold text-slate-800">{new Date(result.completedAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')}</div><div className="mt-1 text-xs text-slate-500">{locale === 'zh' ? `准确率 ${Math.round(result.accuracy * 100)}% · 用时 ${(result.totalDuration / 1000).toFixed(1)}s · 响应 ${Math.round(result.meanResponseTime)}ms` : `Accuracy ${Math.round(result.accuracy * 100)}% · ${(result.totalDuration / 1000).toFixed(1)}s · ${Math.round(result.meanResponseTime)}ms`}</div></div><span className="font-mono font-bold text-violet-700">{result.cognitiveStabilityScore}/100</span></button>)}</div> : <div className="p-7 text-center text-xs text-slate-400">{locale === 'zh' ? '尚无认知测试记录。' : 'No cognition records yet.'}</div>}
+      </div>
 
       {/* Sessions list */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs divide-y divide-slate-100 overflow-hidden">
@@ -175,4 +184,3 @@ export const SessionsPage: React.FC<SessionsPageProps> = ({
     </div>
   );
 };
-

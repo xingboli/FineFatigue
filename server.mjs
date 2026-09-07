@@ -31,6 +31,7 @@ function readStore() {
       }
       account.sessions = Array.isArray(account.sessions) ? account.sessions.filter(session => !isLegacySampleRecord(session)) : [];
       account.subjective = Array.isArray(account.subjective) ? account.subjective : [];
+      account.cognition = Array.isArray(account.cognition) ? account.cognition : [];
       account.settings = account.settings && typeof account.settings === 'object' ? account.settings : {};
       account.compensation = account.compensation && typeof account.compensation === 'object' ? account.compensation : { amount: 0, note: '', status: 'pending' };
       account.status = ['active', 'pending', 'disabled'].includes(account.status) ? account.status : 'active';
@@ -73,7 +74,7 @@ function createParticipantAccount(identifier, password) {
   const account = {
     user: { id: accountId, name: participantCode, email: `${loginKey}@lab.local`, role: 'participant', participantCode, avatar: '🧑‍🔬', lastLogin: Date.now(), loginKey },
     password: hashPassword(password),
-    sessions: [], subjective: [], settings: {},
+    sessions: [], subjective: [], cognition: [], settings: {},
     compensation: { amount: 0, note: '', status: 'pending' }, status: 'pending', createdAt: Date.now(), updatedAt: Date.now()
   };
   store.accounts[accountId] = account;
@@ -115,12 +116,18 @@ function mergeById(existing = [], incoming = []) {
   for (const item of [...existing, ...incoming]) {
     if (isLegacySampleRecord(item) || !item?.id) continue;
     const current = merged.get(item.id);
-    if (!current || Number(item.timestamp || 0) >= Number(current.timestamp || 0)) merged.set(item.id, { ...item });
+    if (!current || recordTimestamp(item) >= recordTimestamp(current)) merged.set(item.id, { ...item });
   }
-  return [...merged.values()].sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+  return [...merged.values()].sort((a, b) => recordTimestamp(b) - recordTimestamp(a));
+}
+function recordTimestamp(item) {
+  const numeric = Number(item?.timestamp);
+  if (Number.isFinite(numeric)) return numeric;
+  const parsed = Date.parse(String(item?.timestamp || ''));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 function accountPayload(account) {
-  return { user: publicUser(account.user), sessions: account.sessions, subjective: account.subjective, settings: account.settings, syncedAt: account.updatedAt };
+  return { user: publicUser(account.user), sessions: account.sessions, subjective: account.subjective, cognition: account.cognition, settings: account.settings, syncedAt: account.updatedAt };
 }
 function adminProfile() {
   return { id: 'ADMIN', name: process.env.ADMIN_USERNAME || 'Administrator', email: 'admin@lab.local', role: 'researcher', participantCode: 'ADMIN', avatar: '🧑‍💼', lastLogin: Date.now() };
@@ -180,10 +187,11 @@ app.post('/api/auth/logout', (req, res) => {
   res.status(204).end();
 });
 app.post('/api/sync', requireParticipant, (req, res) => {
-  const { sessions, subjective, settings } = req.body || {};
+  const { sessions, subjective, cognition, settings } = req.body || {};
   const account = req.account;
   account.sessions = mergeById(account.sessions, Array.isArray(sessions) ? sessions : []);
   account.subjective = mergeById(account.subjective, Array.isArray(subjective) ? subjective : []);
+  account.cognition = mergeById(account.cognition, Array.isArray(cognition) ? cognition : []);
   account.settings = { ...account.settings, ...(settings && typeof settings === 'object' ? settings : {}) };
   account.updatedAt = Date.now();
   writeStore();
@@ -193,7 +201,7 @@ app.get('/api/admin/accounts', requireAdmin, (_req, res) => {
   const accounts = Object.values(store.accounts).map(account => ({
     id: account.user.id, name: account.user.name, participantCode: account.user.participantCode, createdAt: account.createdAt,
     lastLogin: account.user.lastLogin, status: account.status, experimentCount: account.sessions.length,
-    subjectiveCount: account.subjective.length, compensation: account.compensation
+    subjectiveCount: account.subjective.length, cognitionCount: account.cognition.length, compensation: account.compensation
   })).sort((a, b) => Number(b.lastLogin || 0) - Number(a.lastLogin || 0));
   res.json({ accounts });
 });
@@ -227,11 +235,24 @@ app.get('/api/admin/export/sessions.csv', requireAdmin, (_req, res) => {
 app.get('/api/admin/export/users.csv', requireAdmin, (_req, res) => {
   const rows = Object.values(store.accounts).map(account => ({
     participant_code: account.user.participantCode, status: account.status, experiment_count: account.sessions.length,
-    subjective_count: account.subjective.length, compensation_amount: account.compensation.amount,
+    subjective_count: account.subjective.length, cognition_test_count: account.cognition.length, compensation_amount: account.compensation.amount,
     compensation_status: account.compensation.status, compensation_note: account.compensation.note,
     created_at: account.createdAt, last_login: account.user.lastLogin
   }));
-  csvResponse(res, 'finefatigue-users.csv', ['participant_code', 'status', 'experiment_count', 'subjective_count', 'compensation_amount', 'compensation_status', 'compensation_note', 'created_at', 'last_login'], rows);
+  csvResponse(res, 'finefatigue-users.csv', ['participant_code', 'status', 'experiment_count', 'subjective_count', 'cognition_test_count', 'compensation_amount', 'compensation_status', 'compensation_note', 'created_at', 'last_login'], rows);
+});
+app.get('/api/admin/export/cognition.csv', requireAdmin, (_req, res) => {
+  const rows = Object.values(store.accounts).flatMap(account => account.cognition.map(result => ({
+    participant_code: account.user.participantCode, cognition_session_id: result.id, timestamp: result.timestamp,
+    total_duration_ms: result.totalDuration, total_pairs: result.totalPairs, total_attempts: result.totalAttempts,
+    correct_attempts: result.correctAttempts, incorrect_attempts: result.incorrectAttempts, accuracy: result.accuracy,
+    mean_response_time_ms: result.meanResponseTime, median_response_time_ms: result.medianResponseTime,
+    moves_per_pair: result.movesPerPair, first_half_accuracy: result.firstHalfAccuracy, second_half_accuracy: result.secondHalfAccuracy,
+    first_half_mean_rt_ms: result.firstHalfMeanRT, second_half_mean_rt_ms: result.secondHalfMeanRT,
+    reaction_time_change: result.reactionTimeChange, error_rate_change: result.errorRateChange,
+    memory_score: result.memoryScore, response_speed_score: result.responseSpeedScore, cognitive_stability_score: result.cognitiveStabilityScore
+  })));
+  csvResponse(res, 'finefatigue-cognition.csv', ['participant_code', 'cognition_session_id', 'timestamp', 'total_duration_ms', 'total_pairs', 'total_attempts', 'correct_attempts', 'incorrect_attempts', 'accuracy', 'mean_response_time_ms', 'median_response_time_ms', 'moves_per_pair', 'first_half_accuracy', 'second_half_accuracy', 'first_half_mean_rt_ms', 'second_half_mean_rt_ms', 'reaction_time_change', 'error_rate_change', 'memory_score', 'response_speed_score', 'cognitive_stability_score'], rows);
 });
 app.post('/api/ai/motivation', async (req, res) => {
   const apiKey = process.env.MIMO_API_KEY;

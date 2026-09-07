@@ -11,9 +11,10 @@ import {
   ShieldCheck,
   ChevronRight,
   Sliders,
-  HeartHandshake
+  HeartHandshake,
+  Brain
 } from 'lucide-react';
-import { AssessmentReportData, SensorStatus, SubjectiveFatigueRecord } from '../types';
+import { AssessmentReportData, CognitionMemoryResult, SensorStatus, SubjectiveFatigueRecord } from '../types';
 import { useI18n } from '../i18n/context';
 import { FatigueCareCard } from '../components/common/FatigueCareCard';
 import { HistoryTimeComparisonChart } from '../components/charts/HistoryTimeComparisonChart';
@@ -23,7 +24,9 @@ interface OverviewPageProps {
   sensorStatus: SensorStatus;
   sessions: AssessmentReportData[];
   subjectiveRecords?: SubjectiveFatigueRecord[];
+  cognitionResults?: CognitionMemoryResult[];
   onStartAssessment: () => void;
+  onStartCognition: () => void;
   onOpenReport: (report: AssessmentReportData) => void;
   onNavigateToSessions: () => void;
 }
@@ -33,12 +36,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   sensorStatus,
   sessions,
   subjectiveRecords = [],
+  cognitionResults = [],
   onStartAssessment,
+  onStartCognition,
   onOpenReport,
   onNavigateToSessions
 }) => {
   const { t, locale } = useI18n();
   const latestSession = sessions[0] || null;
+  const latestCognition = cognitionResults[0] || null;
   const avgFatigue = sessions.length > 0
     ? Math.round(sessions.reduce((acc, s) => acc + s.fatigueIndex, 0) / sessions.length)
     : null;
@@ -89,6 +95,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             >
               <PlayCircle className="w-5 h-5" />
               <span>{t.overview.btnStart}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onStartCognition}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-sm font-semibold transition-all"
+            >
+              <Brain className="w-5 h-5" />
+              <span>{locale === 'zh' ? '认知与记忆测试' : 'Cognition & Memory'}</span>
             </button>
           </div>
         </div>
@@ -193,6 +207,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             {t.overview.reactionDesc}
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-violet-200/80 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3"><div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center shrink-0"><Brain className="w-5 h-5" /></div><div><div className="flex items-center gap-2"><h2 className="text-sm font-bold text-slate-900">{locale === 'zh' ? '认知与记忆 · 本次真实测试数据' : 'Cognition & Memory · Real task data'}</h2><span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200">{locale === 'zh' ? '非临床指标' : 'Experimental metric'}</span></div><p className="text-xs text-slate-500 mt-1">{latestCognition ? (locale === 'zh' ? `最新完成：准确率 ${Math.round(latestCognition.accuracy * 100)}% · 平均响应 ${Math.round(latestCognition.meanResponseTime)}ms · 稳定性 ${latestCognition.cognitiveStabilityScore}/100` : `Latest: ${Math.round(latestCognition.accuracy * 100)}% accuracy · ${Math.round(latestCognition.meanResponseTime)}ms mean response · ${latestCognition.cognitiveStabilityScore}/100 stability`) : (locale === 'zh' ? '尚无测试结果。完成一次空间记忆配对后，此处会显示真实本次数据。' : 'No result yet. Complete a spatial matching task to show real data here.')}</p></div></div>
+        <button type="button" onClick={onStartCognition} className="shrink-0 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold">{latestCognition ? (locale === 'zh' ? '再次测试' : 'Test again') : (locale === 'zh' ? '开始测试' : 'Start test')}</button>
       </div>
 
       {/* AI advice uses objective test measurements only. Subjective fatigue is

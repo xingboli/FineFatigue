@@ -172,6 +172,59 @@ export interface SubjectiveFatigueRecord {
   linkedSessionId?: string;
 }
 
+export interface MemoryInteractionEvent {
+  timestamp: number;
+  cardId: string;
+  pairId: string;
+  attemptIndex: number;
+  position: number;
+  isFirstSelection: boolean;
+  matched: boolean | null;
+}
+
+export interface MemoryAttempt {
+  attemptIndex: number;
+  firstCardId: string;
+  secondCardId: string;
+  firstPairId: string;
+  secondPairId: string;
+  startedAt: number;
+  completedAt: number;
+  responseTimeMs: number;
+  matched: boolean;
+}
+
+export interface CognitionMemoryResult {
+  id: string;
+  timestamp: string;
+  completedAt: number;
+  totalDuration: number;
+  totalPairs: number;
+  totalAttempts: number;
+  correctAttempts: number;
+  incorrectAttempts: number;
+  mismatchCount: number;
+  accuracy: number;
+  movesPerPair: number;
+  meanResponseTime: number;
+  medianResponseTime: number;
+  fastestResponseTime: number;
+  slowestResponseTime: number;
+  firstHalfAccuracy: number;
+  secondHalfAccuracy: number;
+  firstHalfErrorRate: number;
+  secondHalfErrorRate: number;
+  firstHalfMeanRT: number;
+  secondHalfMeanRT: number;
+  reactionTimeChange: number;
+  errorRateChange: number;
+  memoryScore: number;
+  responseSpeedScore: number;
+  cognitiveStabilityScore: number;
+  interactions: MemoryInteractionEvent[];
+  attempts: MemoryAttempt[];
+}
+
 export interface MotivationMessage {
   id: string;
   tier: 'optimal' | 'mild' | 'moderate' | 'high' | 'severe';

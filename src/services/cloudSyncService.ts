@@ -1,6 +1,7 @@
-import { CloudSyncState, AssessmentReportData, SubjectiveFatigueRecord } from '../types';
+import { CloudSyncState, AssessmentReportData, CognitionMemoryResult, SubjectiveFatigueRecord } from '../types';
 import { StorageService } from './storage';
 import { authService } from './authService';
+import { CognitionStorage } from './cognitionStorage';
 
 const STORAGE_KEY_SYNC_STATE = 'finefatigue_cloud_sync_state_v1';
 const STORAGE_KEY_DEVICE_ID = 'finefatigue_device_id_v1';
@@ -9,6 +10,7 @@ type SyncListener = (state: CloudSyncState) => void;
 type SyncPayload = {
   sessions: AssessmentReportData[];
   subjective: SubjectiveFatigueRecord[];
+  cognition: CognitionMemoryResult[];
   settings: Record<string, unknown>;
   syncedAt: number;
 };
@@ -65,6 +67,7 @@ class CloudSyncService {
         body: JSON.stringify({
           sessions: StorageService.getSessions(),
           subjective: StorageService.getSubjectiveFatigueRecords(),
+          cognition: CognitionStorage.getResults(),
           settings: StorageService.getSettings()
         })
       });
@@ -74,14 +77,14 @@ class CloudSyncService {
       this.state = { ...this.state, status: 'synced', lastSyncTime: Date.now(), pendingChangesCount: 0 };
       this.saveState();
       this.notify();
-      return { success: true, syncedItemsCount: payload.sessions.length + payload.subjective.length, latencyMs: Date.now() - startedAt };
+      return { success: true, syncedItemsCount: payload.sessions.length + payload.subjective.length + payload.cognition.length, latencyMs: Date.now() - startedAt };
     } catch {
       return this.failSync(Date.now() - startedAt);
     }
   }
 
   exportCloudBackupJson(): string {
-    return JSON.stringify({ version: '2.0.0', exportedAt: new Date().toISOString(), user: authService.getCurrentUser(), sessions: StorageService.getSessions(), subjective: StorageService.getSubjectiveFatigueRecords(), settings: StorageService.getSettings() }, null, 2);
+    return JSON.stringify({ version: '2.1.0', exportedAt: new Date().toISOString(), user: authService.getCurrentUser(), sessions: StorageService.getSessions(), subjective: StorageService.getSubjectiveFatigueRecords(), cognition: CognitionStorage.getResults(), settings: StorageService.getSettings() }, null, 2);
   }
 
   importCloudBackupJson(jsonString: string): { success: boolean; message: string } {
@@ -89,6 +92,7 @@ class CloudSyncService {
       const data = JSON.parse(jsonString);
       if (Array.isArray(data.sessions)) StorageService.saveSessions(data.sessions);
       if (Array.isArray(data.subjective)) StorageService.saveSubjectiveFatigueRecords(data.subjective);
+      if (Array.isArray(data.cognition)) CognitionStorage.saveResults(data.cognition);
       this.markPending();
       return { success: true, message: 'Backup restored locally and queued for LAN sync.' };
     } catch (error: any) {
@@ -99,6 +103,7 @@ class CloudSyncService {
   private applyServerPayload(payload: SyncPayload): void {
     StorageService.saveSessions(payload.sessions || []);
     StorageService.saveSubjectiveFatigueRecords(payload.subjective || []);
+    CognitionStorage.saveResults(payload.cognition || []);
     if (payload.settings && typeof payload.settings === 'object') {
       StorageService.saveSettings({ ...StorageService.getSettings(), ...payload.settings });
     }

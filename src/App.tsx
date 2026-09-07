@@ -10,19 +10,22 @@ import { SensorMonitorPage } from './pages/SensorMonitorPage';
 import { SessionsPage } from './pages/SessionsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
+import { CognitionMemoryPage } from './pages/CognitionMemoryPage';
 import { StarCatcherGame } from './components/games/StarCatcherGame';
 import { AssessmentWizard } from './components/assessment/AssessmentWizard';
 import { StorageService } from './services/storage';
 import { authService } from './services/authService';
 import { cloudSyncService } from './services/cloudSyncService';
 import { RealHardwareSensorAdapter } from './services/sensorAdapter';
+import { CognitionStorage } from './services/cognitionStorage';
 import { 
   AssessmentReportData, 
   IMUDataPoint, 
   SensorStatus, 
   UserProfile, 
   CloudSyncState, 
-  SubjectiveFatigueRecord 
+  SubjectiveFatigueRecord,
+  CognitionMemoryResult
 } from './types';
 
 const sensorService = new RealHardwareSensorAdapter();
@@ -33,6 +36,8 @@ export default function App() {
   const [sessions, setSessions] = useState<AssessmentReportData[]>([]);
   const [activeReport, setActiveReport] = useState<AssessmentReportData | null>(null);
   const [subjectiveRecords, setSubjectiveRecords] = useState<SubjectiveFatigueRecord[]>([]);
+  const [cognitionResults, setCognitionResults] = useState<CognitionMemoryResult[]>([]);
+  const [activeCognitionResult, setActiveCognitionResult] = useState<CognitionMemoryResult | null>(null);
 
   // Auth & Cloud Sync state
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => authService.getCurrentUser());
@@ -55,6 +60,7 @@ export default function App() {
 
     const loadedSubjective = StorageService.getSubjectiveFatigueRecords();
     setSubjectiveRecords(loadedSubjective);
+    setCognitionResults(CognitionStorage.getResults());
 
     const savedSubject = localStorage.getItem('finefatigue_subject_id');
     if (savedSubject) {
@@ -73,6 +79,7 @@ export default function App() {
     void cloudSyncService.syncNow().then(() => {
       setSessions(StorageService.getSessions());
       setSubjectiveRecords(StorageService.getSubjectiveFatigueRecords());
+      setCognitionResults(CognitionStorage.getResults());
       setActiveReport(StorageService.getActiveReport());
     });
   }, [currentUser?.id]);
@@ -133,6 +140,8 @@ export default function App() {
     const refreshed = StorageService.getSessions();
     setSessions(refreshed);
     setSubjectiveRecords(StorageService.getSubjectiveFatigueRecords());
+    CognitionStorage.clearResults();
+    setCognitionResults([]);
     if (refreshed.length > 0) {
       setActiveReport(refreshed[0]);
     }
@@ -159,6 +168,14 @@ export default function App() {
     setSessions(StorageService.getSessions());
     setSubjectiveRecords(StorageService.getSubjectiveFatigueRecords());
     setCurrentTab('report');
+  };
+
+  const handleCognitionComplete = async (result: CognitionMemoryResult) => {
+    CognitionStorage.addResult(result);
+    setCognitionResults(CognitionStorage.getResults());
+    cloudSyncService.markPending();
+    await cloudSyncService.syncNow();
+    setCognitionResults(CognitionStorage.getResults());
   };
 
   const handleOpenReport = (report: AssessmentReportData) => {
@@ -200,7 +217,9 @@ export default function App() {
               sensorStatus={sensorStatus}
               sessions={sessions}
               subjectiveRecords={subjectiveRecords}
+              cognitionResults={cognitionResults}
               onStartAssessment={handleStartAssessment}
+              onStartCognition={() => { setActiveCognitionResult(null); setCurrentTab('cognition'); }}
               onOpenReport={handleOpenReport}
               onNavigateToSessions={() => setCurrentTab('sessions')}
             />
@@ -238,9 +257,20 @@ export default function App() {
             <SessionsPage
               sessions={sessions}
               subjectiveRecords={subjectiveRecords}
+              cognitionResults={cognitionResults}
               onOpenReport={handleOpenReport}
               onDeleteSession={handleDeleteSession}
               onStartNewAssessment={handleStartAssessment}
+              onOpenCognition={result => { setActiveCognitionResult(result || null); setCurrentTab('cognition'); }}
+            />
+          )}
+
+          {currentTab === 'cognition' && (
+            <CognitionMemoryPage
+              results={cognitionResults}
+              initialResult={activeCognitionResult}
+              onSaveResult={result => { void handleCognitionComplete(result); }}
+              onBack={() => setCurrentTab('overview')}
             />
           )}
 

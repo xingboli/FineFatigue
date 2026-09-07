@@ -13,13 +13,14 @@ import {
   Cloud,
   UserCheck,
   RefreshCw,
-  Shield
+  Shield,
+  Brain
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
 import { UserProfile, CloudSyncState } from '../../types';
 
-export type PageId = 'overview' | 'assessment' | 'sessions' | 'sensor_monitor' | 'report' | 'star_catcher' | 'settings' | 'admin' | 'monitor' | 'reports' | 'game';
+export type PageId = 'overview' | 'assessment' | 'cognition' | 'sessions' | 'sensor_monitor' | 'report' | 'star_catcher' | 'settings' | 'admin' | 'monitor' | 'reports' | 'game';
 
 interface SidebarProps {
   currentPage?: string;
@@ -63,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     { id: 'overview', label: t.nav.overview, icon: Activity, badge: null },
     { id: 'assessment', label: t.nav.assessment, icon: PlayCircle, badge: isAssessmentActive ? t.nav.badgeActive : null, highlight: true },
+    { id: 'cognition', label: locale === 'zh' ? '认知与记忆' : 'Cognition & Memory', icon: Brain, badge: null },
     { id: 'sessions', label: t.nav.sessions, icon: History, badge: null },
     { id: 'sensor_monitor', label: t.nav.monitor, icon: Radio, badge: '50Hz' },
     { id: 'report', label: t.nav.reports, icon: FileText, badge: null },

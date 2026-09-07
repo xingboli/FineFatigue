@@ -11,7 +11,8 @@ import {
   Cloud, 
   User, 
   FileText,
-  Shield
+  Shield,
+  Brain
 } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
@@ -153,6 +154,18 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
             {/* Navigation List */}
             <div className="space-y-1 pt-1">
+              <button
+                type="button"
+                onClick={() => handleNavClick('cognition')}
+                className="w-full p-2.5 rounded-xl hover:bg-slate-50 text-left text-xs font-medium text-slate-700 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Brain className="w-4 h-4 text-violet-600" />
+                  <span>{locale === 'zh' ? '认知与记忆测试' : 'Cognition & Memory'}</span>
+                </div>
+                <span className="text-[10px] text-violet-600 font-mono">4 × 4</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => handleNavClick('sensor_monitor')}
