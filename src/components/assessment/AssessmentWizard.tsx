@@ -23,6 +23,7 @@ import { calculateFatigueAssessment } from '../../utils/fatigueScoring';
 import { StorageService } from '../../services/storage';
 import { ShieldAlert } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
+import { DEMO_MODE } from '../../config/runtime';
 
 interface AssessmentWizardProps {
   subjectId: string;
@@ -242,6 +243,13 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
   return (
     <div className="space-y-6">
       {storageError && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{storageError}</div>}
+      {DEMO_MODE && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          {locale === 'zh'
+            ? '演示模式已缩短实验时长（反应测试 6 轮 · 负荷挑战 15 秒）。正式研究版本使用标准实验时长，且不使用任何模拟数据。'
+            : 'Demo mode shortens experiment durations (6 reaction trials · 15s load challenge). The formal research version uses standard durations and never simulates data.'}
+        </div>
+      )}
       {/* Battery Stepper Header */}
       <div className="bg-white px-6 py-4 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">

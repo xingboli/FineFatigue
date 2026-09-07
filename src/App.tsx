@@ -4,6 +4,7 @@ import { TopBar } from './components/layout/TopBar';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { AuthModal } from './components/common/AuthModal';
 import { CloudSyncModal } from './components/common/CloudSyncModal';
+import { DemoBanner } from './components/common/DemoBanner';
 import { OverviewPage } from './pages/OverviewPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SensorMonitorPage } from './pages/SensorMonitorPage';
@@ -28,6 +29,7 @@ import {
   CognitionMemoryResult,
   StarCatcherResult
 } from './types';
+import { DEMO_MODE } from './config/runtime';
 
 const sensorService = new RealHardwareSensorAdapter();
 
@@ -70,12 +72,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void authService.validateCurrentSession();
+    // Demo Mode has no server: authService itself short-circuits, but skip the
+    // call entirely so no session bookkeeping happens on GitHub Pages.
+    if (!DEMO_MODE) void authService.validateCurrentSession();
   }, []);
 
   // After a LAN account is restored or switched, merge the browser cache with
   // the account's central record and refresh the visible dashboard data.
   useEffect(() => {
+    if (DEMO_MODE) return; // local-only data in Demo Mode
     if (!currentUser || currentUser.role !== 'participant') return;
     void cloudSyncService.syncNow().then(() => {
       setSessions(StorageService.getSessions());
@@ -196,21 +201,24 @@ export default function App() {
         onStartAssessment={handleStartAssessment}
         currentUser={currentUser}
         isAdmin={currentUser?.role === 'researcher'}
-        syncState={syncState}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onOpenSync={() => setIsSyncModalOpen(true)}
+        syncState={DEMO_MODE ? undefined : syncState}
+        onOpenAuth={DEMO_MODE ? undefined : () => setIsAuthModalOpen(true)}
+        onOpenSync={DEMO_MODE ? undefined : () => setIsSyncModalOpen(true)}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Demo Mode marker (renders nothing in Full Mode) */}
+        <DemoBanner />
+
         <TopBar
           subjectId={subjectId}
           sensorStatus={sensorStatus}
           currentUser={currentUser}
           syncState={syncState}
           onStartAssessment={handleStartAssessment}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
-          onOpenSync={() => setIsSyncModalOpen(true)}
+          onOpenAuth={DEMO_MODE ? undefined : () => setIsAuthModalOpen(true)}
+          onOpenSync={DEMO_MODE ? undefined : () => setIsSyncModalOpen(true)}
         />
 
         {/* Content View with bottom padding for mobile navigation bar */}
@@ -298,28 +306,32 @@ export default function App() {
         <MobileBottomNav
           currentTab={currentTab}
           onSelectTab={tab => setCurrentTab(tab)}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
-          onOpenSync={() => setIsSyncModalOpen(true)}
+          onOpenAuth={DEMO_MODE ? undefined : () => setIsAuthModalOpen(true)}
+          onOpenSync={DEMO_MODE ? undefined : () => setIsSyncModalOpen(true)}
           currentUser={currentUser}
           isAdmin={currentUser?.role === 'researcher'}
-          syncState={syncState}
+          syncState={DEMO_MODE ? undefined : syncState}
         />
       </div>
 
       {/* Auth / Account Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentUser={currentUser}
-        onUserChanged={user => setCurrentUser(user)}
-      />
+      {!DEMO_MODE && (
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          currentUser={currentUser}
+          onUserChanged={user => setCurrentUser(user)}
+        />
+      )}
 
       {/* Cloud Sync Modal */}
-      <CloudSyncModal
-        isOpen={isSyncModalOpen}
-        onClose={() => setIsSyncModalOpen(false)}
-        syncState={syncState}
-      />
+      {!DEMO_MODE && (
+        <CloudSyncModal
+          isOpen={isSyncModalOpen}
+          onClose={() => setIsSyncModalOpen(false)}
+          syncState={syncState}
+        />
+      )}
 
     </div>
   );

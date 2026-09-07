@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Flame, Play, CheckCircle2, Zap } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
+import { DEMO_MODE } from '../../config/runtime';
 
 interface FatigueChallengeStepProps {
   onComplete: (durationSec: number, totalTaps: number) => void;
@@ -8,9 +9,10 @@ interface FatigueChallengeStepProps {
 
 export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onComplete }) => {
   const { locale } = useI18n();
-  const [mode, setMode] = useState<30 | 60>(30);
+  // Quick Demo uses a single shortened 15s protocol; Full Mode keeps 30s/60s.
+  const [mode, setMode] = useState<15 | 30 | 60>(DEMO_MODE ? 15 : 30);
   const [stage, setStage] = useState<'idle' | 'running' | 'finished'>('idle');
-  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [timeLeft, setTimeLeft] = useState<number>(DEMO_MODE ? 15 : 30);
   const [tapCount, setTapCount] = useState<number>(0);
   const [currentRate, setCurrentRate] = useState<number>(0);
   const [lastTapSide, setLastTapSide] = useState<'left' | 'right' | null>(null);
@@ -95,7 +97,7 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onCo
           </div>
 
           <div className="flex items-center gap-2">
-            {stage === 'idle' && (
+            {stage === 'idle' && !DEMO_MODE && (
               <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-mono">
                 <button
                   type="button"

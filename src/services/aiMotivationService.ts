@@ -1,4 +1,5 @@
 import { MotivationMessage } from '../types';
+import { DEMO_MODE } from '../config/runtime';
 
 export type FatigueLevelTier = 'optimal' | 'mild' | 'moderate' | 'high' | 'severe';
 
@@ -297,14 +298,18 @@ export class AiMotivationService {
     const lang = request.language || 'zh';
     const tier = this.determineTier(request.overallScore);
 
-    // The same-origin LAN endpoint owns the provider configuration and key.
-    try {
-      const llmResult = await this.callLlmApi(request, tier);
-      if (llmResult) {
-        return llmResult;
+    // Demo Mode (GitHub Pages): no LAN server exists, so go straight to the
+    // deterministic local rule engine. The MiMo key never reaches the client.
+    if (!DEMO_MODE) {
+      // The same-origin LAN endpoint owns the provider configuration and key.
+      try {
+        const llmResult = await this.callLlmApi(request, tier);
+        if (llmResult) {
+          return llmResult;
+        }
+      } catch (err) {
+        // Graceful fallback to local targeted rule engine as requested
       }
-    } catch (err) {
-      // Graceful fallback to local targeted rule engine as requested
     }
 
     return this.getLocalTargetedAdvice(tier, lang);

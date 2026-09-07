@@ -3,8 +3,12 @@ import { Play, RotateCcw, ArrowRight, CheckCircle, Zap, AlertTriangle } from 'lu
 import { ReactionMetrics, ReactionTrial } from '../../types';
 import { ReactionTrialChart } from '../charts/ReactionTrialChart';
 import { useI18n } from '../../i18n/context';
+import { DEMO_MODE } from '../../config/runtime';
 
-const TOTAL_TRIALS = 30;
+// Quick Demo shortens the battery duration only: fewer PVT trials with a
+// compressed 1-4s inter-stimulus window. The formal protocol (30 trials,
+// 2-10s ISI) is untouched in Full Mode. No data is simulated or pre-filled.
+const TOTAL_TRIALS = DEMO_MODE ? 6 : 30;
 
 interface ReactionStepProps {
   isPostFatigue?: boolean;
@@ -37,8 +41,11 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
     setStage('waiting');
     setLastReactionMs(null);
 
-    // PVT-style randomized inter-stimulus interval: 2–10 seconds.
-    const randomDelay = Math.floor(2000 + Math.random() * 8000);
+    // PVT-style randomized inter-stimulus interval: 2–10 seconds
+    // (1–4 seconds in the shortened Quick Demo protocol).
+    const randomDelay = DEMO_MODE
+      ? Math.floor(1000 + Math.random() * 3000)
+      : Math.floor(2000 + Math.random() * 8000);
 
     waitTimerRef.current = window.setTimeout(() => {
       signalTimeRef.current = Date.now();

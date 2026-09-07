@@ -4,6 +4,36 @@ FineFatigue 是一个面向手部疲劳与精细运动实验的数据采集 Web 
 
 本项目用于实验采集与研究辅助，不用于临床诊断或医疗决策。
 
+## Online Demo
+
+静态演示版（无需服务器，浏览器直接打开）：
+
+**<https://xingboli.github.io/FineFatigue/>**
+
+演示版保留全部浏览器端实验能力：完整疲劳评测流程（校准 → 基准 4 项 → 负荷挑战 → 复测 4 项 → 主观自评 → 报告）、认知与记忆测试、Star Catcher 追踪任务、真实 `DeviceMotion` IMU（设备支持时）、LocalStorage 本地历史、报告 JSON 导出与打印。为方便快速体验，演示版缩短了反应测试与负荷挑战时长，并在页面顶部明确标注；所有测量仍来自真实交互与传感器，不使用模拟数据。
+
+| 功能 | Online Demo | Local Full |
+| --- | --- | --- |
+| 前端实验（评测/认知/追踪小游戏） | ✅ | ✅ |
+| IMU（设备支持时） | ✅ | ✅ |
+| LocalStorage 本地记录 | ✅ | ✅ |
+| 报告 / JSON 导出 / 打印 | ✅ | ✅ |
+| 快速体验（缩短时长） | ✅ | ❌（标准时长） |
+| 用户系统（注册/登录/审核） | ❌ | ✅ |
+| 云同步 | ❌ | ✅ |
+| 管理员后台与 CSV 导出 | ❌ | ✅ |
+| 服务端 AI（MiMo）建议 | ❌（使用本地规则建议） | ✅ |
+
+### Demo 构建
+
+```bash
+npm run build:demo   # 产物输出到 dist/，base=/FineFatigue/，纯静态可部署
+```
+
+Demo Mode 由 `--mode demo` 构建目标驱动（见 `vite.config.ts` 的 `__DEMO_MODE__` 注入与 `src/config/runtime.ts`）。所有依赖服务端的能力在发请求前即被禁用，页面不会产生 `/api/*` 404；MiMo API Key 永远不会进入前端产物。
+
+GitHub Pages 部署由 `.github/workflows/deploy-pages.yml` 自动完成：`main` 分支更新时自动构建并发布 Demo 版。
+
 ## 已实现功能
 
 - 真实 IMU 采集：通过浏览器 `DeviceMotion` 读取加速度和角速度；设备不支持或未授权时明确显示“IMU 传感器不可用”，不会生成模拟波形或伪造传感器数据。
@@ -87,11 +117,12 @@ npm run dev
 ## 常用命令
 
 ```bash
-npm run dev     # Vite 前端开发服务器
-npm run lint    # TypeScript 类型检查
-npm run build   # 生产构建到 dist/
-npm start       # 启动 LAN 服务（需先构建）
-npm run preview # 预览 Vite 构建产物；不提供 API
+npm run dev        # Vite 前端开发服务器
+npm run lint       # TypeScript 类型检查
+npm run build      # 生产构建到 dist/（完整版，base=/）
+npm run build:demo # 静态演示版构建到 dist/（base=/FineFatigue/）
+npm start          # 启动 LAN 服务（需先构建）
+npm run preview    # 预览 Vite 构建产物；不提供 API
 ```
 
 ## 局域网 / Tailscale 运行说明

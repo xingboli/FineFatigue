@@ -1,4 +1,5 @@
 import { UserProfile } from '../types';
+import { DEMO_MODE, DEMO_DISABLED_NOTICE } from '../config/runtime';
 
 const STORAGE_KEY_AUTH = 'finefatigue_auth_v2';
 type AuthListener = (user: UserProfile | null) => void;
@@ -66,7 +67,7 @@ class AuthService {
   }
 
   logout(): void {
-    if (this.accessToken) void fetch('/api/auth/logout', { method: 'POST', headers: this.getAuthHeaders() });
+    if (this.accessToken && !DEMO_MODE) void fetch('/api/auth/logout', { method: 'POST', headers: this.getAuthHeaders() });
     this.clear(true);
   }
 

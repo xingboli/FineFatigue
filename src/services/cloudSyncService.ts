@@ -2,6 +2,7 @@ import { CloudSyncState, AssessmentReportData, CognitionMemoryResult, StarCatche
 import { StorageService } from './storage';
 import { authService } from './authService';
 import { CognitionStorage } from './cognitionStorage';
+import { DEMO_MODE } from '../config/runtime';
 
 const STORAGE_KEY_SYNC_STATE = 'finefatigue_cloud_sync_state_v1';
 const STORAGE_KEY_DEVICE_ID = 'finefatigue_device_id_v1';
@@ -72,6 +73,8 @@ class CloudSyncService {
   }
 
   async syncNow(): Promise<{ success: boolean; syncedItemsCount: number; latencyMs: number }> {
+    // Demo Mode: skip /api/sync before any request is attempted (no 404s).
+    if (DEMO_MODE) return { success: false, syncedItemsCount: 0, latencyMs: 0 };
     if (!authService.getAccessToken() || authService.getCurrentUser()?.role !== 'participant') return this.failSync(0);
     if (this.state.status === 'syncing') return { success: true, syncedItemsCount: 0, latencyMs: 0 };
 

@@ -21,10 +21,10 @@ import { UserProfile, CloudSyncState } from '../../types';
 interface MobileBottomNavProps {
   currentTab: string;
   onSelectTab: (tab: string) => void;
-  onOpenAuth: () => void;
-  onOpenSync: () => void;
+  onOpenAuth?: () => void;
+  onOpenSync?: () => void;
   currentUser: UserProfile | null;
-  syncState: CloudSyncState;
+  syncState?: CloudSyncState;
   isAdmin?: boolean;
 }
 
@@ -112,7 +112,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 <div>
                   <div className="text-sm font-bold text-slate-900">{currentUser?.name || 'Guest'}</div>
                   <div className="text-[10px] text-slate-400 font-mono">
-                    ID: {currentUser?.participantCode || 'NO-ID'} · {syncState.status === 'synced' ? '☁️ 云端已同步' : '🔄 待同步'}
+                    ID: {currentUser?.participantCode || 'NO-ID'}{syncState ? (syncState.status === 'synced' ? ' · ☁️ 云端已同步' : ' · 🔄 待同步') : ''}
                   </div>
                 </div>
               </div>
@@ -125,32 +125,38 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               </button>
             </div>
 
-            {/* Quick Action Buttons */}
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDrawerOpen(false);
-                  onOpenAuth();
-                }}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-800 flex items-center gap-2"
-              >
-                <User className="w-4 h-4 text-cyan-600" />
-                <span>{locale === 'zh' ? '切换登录账号' : 'Switch User'}</span>
-              </button>
+            {/* Quick Action Buttons (server-dependent; hidden in Demo Mode) */}
+            {(onOpenAuth || onOpenSync) && (
+              <div className="grid grid-cols-2 gap-2">
+                {onOpenAuth && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      onOpenAuth();
+                    }}
+                    className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-800 flex items-center gap-2"
+                  >
+                    <User className="w-4 h-4 text-cyan-600" />
+                    <span>{locale === 'zh' ? '切换登录账号' : 'Switch User'}</span>
+                  </button>
+                )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  setDrawerOpen(false);
-                  onOpenSync();
-                }}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-800 flex items-center gap-2"
-              >
-                <Cloud className="w-4 h-4 text-blue-600" />
-                <span>{locale === 'zh' ? '云端同步中心' : 'Cloud Sync'}</span>
-              </button>
-            </div>
+                {onOpenSync && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      onOpenSync();
+                    }}
+                    className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-800 flex items-center gap-2"
+                  >
+                    <Cloud className="w-4 h-4 text-blue-600" />
+                    <span>{locale === 'zh' ? '云端同步中心' : 'Cloud Sync'}</span>
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Navigation List */}
             <div className="space-y-1 pt-1">
