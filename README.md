@@ -110,6 +110,7 @@ npm run preview # 预览 Vite 构建产物；不提供 API
 - [产品需求文档](docs/PRD.md)
 - [用户使用说明](docs/USER_GUIDE.md)
 - [后续开发与维护说明](docs/MAINTENANCE.md)
+- [完整技术文档](docs/TECHNICAL_DOCUMENTATION.md)
 
 ## 数据与安全提示
 
