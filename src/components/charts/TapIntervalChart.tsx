@@ -1,6 +1,7 @@
 import React from 'react';
 import { TapRecord } from '../../types';
 import { useI18n } from '../../i18n/context';
+import { EXPERIMENT_TIMINGS } from '../../config/runtime';
 
 interface TapIntervalChartProps {
   taps: TapRecord[];
@@ -21,6 +22,9 @@ export const TapIntervalChart: React.FC<TapIntervalChartProps> = ({ taps, height
   const maxInterval = Math.max(450, ...validTaps.map(t => t.interval));
   const minInterval = Math.min(150, ...validTaps.map(t => t.interval));
   const range = Math.max(50, maxInterval - minInterval);
+  const durationMs = EXPERIMENT_TIMINGS.tappingMs;
+  const durationSec = durationMs / 1000;
+  const segmentDurationMs = durationMs / 3;
 
   // SVG Coordinates
   const svgWidth = 600;
@@ -33,16 +37,17 @@ export const TapIntervalChart: React.FC<TapIntervalChartProps> = ({ taps, height
   const plotHeight = svgHeight - paddingTop - paddingBottom;
 
   const points = validTaps.map(t => {
-    const x = paddingLeft + (Math.min(15000, t.timeFromStart) / 15000) * plotWidth;
+    const x = paddingLeft + (Math.min(durationMs, t.timeFromStart) / durationMs) * plotWidth;
     const y = paddingTop + plotHeight - ((t.interval - minInterval) / range) * plotHeight;
     return { x, y, ...t };
   });
 
   const pathD = points.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
 
-  // 5-second zone boundaries
-  const x5s = paddingLeft + (5000 / 15000) * plotWidth;
-  const x10s = paddingLeft + (10000 / 15000) * plotWidth;
+  // Equal-duration zones keep the fatigue progression chart meaningful in
+  // both the standard 15-second protocol and the shorter Demo protocol.
+  const x5s = paddingLeft + (segmentDurationMs / durationMs) * plotWidth;
+  const x10s = paddingLeft + ((segmentDurationMs * 2) / durationMs) * plotWidth;
 
   return (
     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
@@ -74,13 +79,13 @@ export const TapIntervalChart: React.FC<TapIntervalChartProps> = ({ taps, height
 
           {/* Segment labels */}
           <text x={(paddingLeft + x5s) / 2} y={paddingTop + 14} textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="JetBrains Mono">
-            {locale === 'zh' ? '前 5 秒' : 'First 5s'}
+            {locale === 'zh' ? `前 ${segmentDurationMs / 1000} 秒` : `First ${segmentDurationMs / 1000}s`}
           </text>
           <text x={(x5s + x10s) / 2} y={paddingTop + 14} textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="JetBrains Mono">
-            {locale === 'zh' ? '中 5 秒' : 'Middle 5s'}
+            {locale === 'zh' ? `中 ${segmentDurationMs / 1000} 秒` : `Middle ${segmentDurationMs / 1000}s`}
           </text>
           <text x={(x10s + svgWidth - paddingRight) / 2} y={paddingTop + 14} textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="JetBrains Mono">
-            {locale === 'zh' ? '后 5 秒' : 'Last 5s'}
+            {locale === 'zh' ? `后 ${segmentDurationMs / 1000} 秒` : `Last ${segmentDurationMs / 1000}s`}
           </text>
 
           {/* Horizontal grid lines */}
@@ -116,7 +121,7 @@ export const TapIntervalChart: React.FC<TapIntervalChartProps> = ({ taps, height
       <div className="flex justify-between items-center text-[11px] text-slate-400 font-mono mt-1 px-1">
         <span>0s ({locale === 'zh' ? '起点' : 'Start'})</span>
         <span>{locale === 'zh' ? '疲劳演化趋势 (间隔越高代表按键速率下降)' : 'Fatigue Progression (Higher interval = slower tapping)'}</span>
-        <span>15s ({locale === 'zh' ? '终点' : 'End'})</span>
+        <span>{durationSec}s ({locale === 'zh' ? '终点' : 'End'})</span>
       </div>
     </div>
   );

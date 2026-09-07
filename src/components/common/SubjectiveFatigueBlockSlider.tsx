@@ -4,6 +4,7 @@ import { SubjectiveFatigueRecord } from '../../types';
 import { StorageService } from '../../services/storage';
 import { cloudSyncService } from '../../services/cloudSyncService';
 import { useI18n } from '../../i18n/context';
+import { DEMO_MODE } from '../../config/runtime';
 
 interface SubjectiveFatigueBlockSliderProps {
   initialRating?: number;
@@ -255,10 +256,10 @@ export const SubjectiveFatigueBlockSlider: React.FC<SubjectiveFatigueBlockSlider
           {isSaved ? (
             <span className="text-emerald-600 font-semibold flex items-center gap-1">
               <Check className="w-3.5 h-3.5" />
-              {locale === 'zh' ? '已保存并云端同步' : 'Saved & Synced to Cloud'}
+              {DEMO_MODE ? (locale === 'zh' ? '已保存到本机浏览器' : 'Saved in this browser') : (locale === 'zh' ? '已保存并云端同步' : 'Saved & Synced to Cloud')}
             </span>
           ) : (
-            <span>{locale === 'zh' ? '点击确认将同步云端记录' : 'Tap to sync rating to cloud'}</span>
+            <span>{DEMO_MODE ? (locale === 'zh' ? '点击确认将保存到本机浏览器' : 'Tap to save in this browser') : (locale === 'zh' ? '点击确认将同步云端记录' : 'Tap to sync rating to cloud')}</span>
           )}
         </div>
 
@@ -275,7 +276,7 @@ export const SubjectiveFatigueBlockSlider: React.FC<SubjectiveFatigueBlockSlider
           {isSyncing ? (
             <>
               <CloudUpload className="w-3.5 h-3.5 animate-bounce" />
-              <span>{locale === 'zh' ? '云端同步中...' : 'Syncing...'}</span>
+              <span>{DEMO_MODE ? (locale === 'zh' ? '本机保存中...' : 'Saving locally...') : (locale === 'zh' ? '云端同步中...' : 'Syncing...')}</span>
             </>
           ) : isSaved ? (
             <>
@@ -285,7 +286,7 @@ export const SubjectiveFatigueBlockSlider: React.FC<SubjectiveFatigueBlockSlider
           ) : (
             <>
               <CloudUpload className="w-3.5 h-3.5" />
-              <span>{locale === 'zh' ? '记录并同步云端' : 'Record & Sync'}</span>
+              <span>{DEMO_MODE ? (locale === 'zh' ? '记录到本机' : 'Save locally') : (locale === 'zh' ? '记录并同步云端' : 'Record & Sync')}</span>
             </>
           )}
         </button>

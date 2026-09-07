@@ -4,6 +4,24 @@ FineFatigue 是一个面向手部疲劳与精细运动实验的数据采集 Web 
 
 本项目用于实验采集与研究辅助，不用于临床诊断或医疗决策。
 
+## Online Demo
+
+在线演示：<https://xingboli.github.io/FineFatigue/>
+
+Online Demo 是同一代码库的纯静态 Demo 构建，面向课堂、展示和快速体验。它不需要 Node.js、Express、数据库或任何后端 API；实验交互仍使用真实的浏览器点击、Canvas 和设备传感器数据，结果只保存在当前浏览器的 LocalStorage。Demo 会缩短计时以便快速体验，但不会生成虚假 IMU 或预填测试结果。
+
+| 功能 | Online Demo | Local Full |
+| --- | --- | --- |
+| 前端实验与 Canvas 交互 | ✅ | ✅ |
+| IMU | 设备支持时 ✅ | ✅ |
+| LocalStorage、本地历史与报告 | ✅ | ✅ |
+| 用户注册/登录 | ❌ | ✅ |
+| 云同步与数据库 | ❌ | ✅ |
+| 管理员后台与 CSV 汇总 | ❌ | ✅ |
+| 服务端 MiMo AI 建议 | ❌（本地规则建议） | ✅（可选） |
+
+如果设备或浏览器不支持真实运动传感器，页面会明确提示；可使用支持 IMU 的手机通过 HTTPS 打开相关功能。认知与记忆、敲击、反应、螺旋描摹和 Star Catcher 等不依赖 IMU 的浏览器端交互仍可直接体验。
+
 ## 已实现功能
 
 - 真实 IMU 采集：通过浏览器 `DeviceMotion` 读取加速度和角速度；设备不支持或未授权时明确显示“IMU 传感器不可用”，不会生成模拟波形或伪造传感器数据。
@@ -39,6 +57,8 @@ FineFatigue 是一个面向手部疲劳与精细运动实验的数据采集 Web 
 ├─ server.mjs           # Express API、认证、同步、导出和静态文件服务
 ├─ data/                # 运行时创建的服务端数据文件（已忽略，不提交）
 ├─ .env.example         # 环境变量模板
+├─ .env.demo            # GitHub Pages Demo 构建开关
+├─ .github/workflows/   # GitHub Pages 自动部署
 └─ docs/                # PRD、使用说明与维护说明
 ```
 
@@ -69,6 +89,15 @@ npm run dev
 
 注意：`npm run dev` 只启动 Vite 前端开发服务器，不提供认证、同步、管理员或 AI API；需要联调这些功能时，请先构建并使用 `npm start`。
 
+### Demo 构建与本地预览
+
+```bash
+npm run build:demo
+npm run preview:demo
+```
+
+Demo 构建使用 Vite `demo` mode，自动把静态资源 base 设置为 `/FineFatigue/`，适配本仓库的 GitHub Pages 项目路径；Full 构建仍使用 `/`，不改变现有本地部署方式。
+
 ## 环境变量
 
 将 `.env.example` 复制为 `.env`。`.env` 已被 Git 忽略，不能提交真实密钥或密码。
@@ -90,9 +119,16 @@ npm run dev
 npm run dev     # Vite 前端开发服务器
 npm run lint    # TypeScript 类型检查
 npm run build   # 生产构建到 dist/
+npm run build:demo # GitHub Pages 纯静态 Demo 构建
 npm start       # 启动 LAN 服务（需先构建）
 npm run preview # 预览 Vite 构建产物；不提供 API
 ```
+
+## GitHub Pages 自动部署
+
+`.github/workflows/deploy-pages.yml` 会在 `main` 分支更新或手动触发时执行：安装依赖、运行 `npm run build:demo`、上传 `dist/` 并通过官方 Pages Actions 发布。无需把 `dist/` 提交到仓库。
+
+首次启用时，在 GitHub 仓库的 **Settings → Pages** 中将 **Source** 设置为 **GitHub Actions**，并确认 Actions 具有 Pages 写入权限。部署完成后访问：<https://xingboli.github.io/FineFatigue/>。
 
 ## 局域网 / Tailscale 运行说明
 

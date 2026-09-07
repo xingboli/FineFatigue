@@ -3,6 +3,7 @@ import { Radio, CheckCircle2, PlayCircle, Cloud, User } from 'lucide-react';
 import { SensorStatus, UserProfile, CloudSyncState } from '../../types';
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
+import { DEMO_MODE } from '../../config/runtime';
 
 interface TopBarProps {
   subjectId: string;
@@ -43,21 +44,35 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
         ) : (
           <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
-              onClick={onOpenAuth}
-              className="flex items-center gap-1.5 hover:bg-slate-100 p-1 rounded-lg transition-colors text-left"
-            >
-              <span className="text-base sm:text-lg">{currentUser?.avatar || '👨‍🔬'}</span>
-              <div className="min-w-0">
-                <span className="text-xs sm:text-sm font-semibold text-slate-800 font-mono block truncate max-w-[120px] sm:max-w-none">
-                  {currentUser?.name || subjectId}
-                </span>
-                <span className="text-[9px] text-slate-400 font-mono hidden sm:block">
-                  {currentUser?.participantCode || t.topbar.sessionLabId}
-                </span>
+            {DEMO_MODE ? (
+              <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 px-2 py-1 text-left">
+                <span className="text-base sm:text-lg">🧪</span>
+                <div className="min-w-0">
+                  <span className="block truncate font-mono text-xs font-semibold text-slate-800 sm:text-sm">
+                    {locale === 'zh' ? '访客 · 本机数据' : 'Guest · Local data'}
+                  </span>
+                  <span className="hidden text-[9px] text-slate-400 sm:block">
+                    {locale === 'zh' ? '不会上传服务器' : 'Nothing is uploaded'}
+                  </span>
+                </div>
               </div>
-            </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenAuth}
+                className="flex items-center gap-1.5 rounded-lg p-1 text-left transition-colors hover:bg-slate-100"
+              >
+                <span className="text-base sm:text-lg">{currentUser?.avatar || '👨‍🔬'}</span>
+                <div className="min-w-0">
+                  <span className="block max-w-[120px] truncate font-mono text-xs font-semibold text-slate-800 sm:max-w-none sm:text-sm">
+                    {currentUser?.name || subjectId}
+                  </span>
+                  <span className="hidden text-[9px] text-slate-400 sm:block">
+                    {currentUser?.participantCode || t.topbar.sessionLabId}
+                  </span>
+                </div>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -65,7 +80,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       {/* Right Action & Telemetry Badges */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 text-xs">
         {/* Cloud Sync Status Badge Button */}
-        {onOpenSync && (
+        {!DEMO_MODE && onOpenSync && (
           <button
             type="button"
             onClick={onOpenSync}
@@ -100,7 +115,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
 
         {/* User Account Login Button */}
-        {onOpenAuth && (
+        {!DEMO_MODE && onOpenAuth && (
           <button
             type="button"
             onClick={onOpenAuth}

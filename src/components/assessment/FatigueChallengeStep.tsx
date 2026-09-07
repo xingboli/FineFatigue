@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Flame, Play, CheckCircle2, Zap } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
+import { DEMO_MODE, EXPERIMENT_TIMINGS } from '../../config/runtime';
 
 interface FatigueChallengeStepProps {
   onComplete: (durationSec: number, totalTaps: number) => void;
@@ -8,9 +9,10 @@ interface FatigueChallengeStepProps {
 
 export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onComplete }) => {
   const { locale } = useI18n();
-  const [mode, setMode] = useState<30 | 60>(30);
+  const challengeOptions = EXPERIMENT_TIMINGS.challengeOptionsSec;
+  const [mode, setMode] = useState<number>(EXPERIMENT_TIMINGS.defaultChallengeSec);
   const [stage, setStage] = useState<'idle' | 'running' | 'finished'>('idle');
-  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [timeLeft, setTimeLeft] = useState<number>(EXPERIMENT_TIMINGS.defaultChallengeSec);
   const [tapCount, setTapCount] = useState<number>(0);
   const [currentRate, setCurrentRate] = useState<number>(0);
   const [lastTapSide, setLastTapSide] = useState<'left' | 'right' | null>(null);
@@ -100,26 +102,26 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onCo
                 <button
                   type="button"
                   onClick={() => {
-                    setMode(30);
-                    setTimeLeft(30);
+                    setMode(challengeOptions[0]);
+                    setTimeLeft(challengeOptions[0]);
                   }}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                    mode === 30 ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+                    mode === challengeOptions[0] ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  {locale === 'zh' ? '30秒' : '30 seconds'}
+                  {locale === 'zh' ? `${challengeOptions[0]}秒` : `${challengeOptions[0]} seconds`}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    setMode(60);
-                    setTimeLeft(60);
+                    setMode(challengeOptions[1]);
+                    setTimeLeft(challengeOptions[1]);
                   }}
                   className={`px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-                    mode === 60 ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
+                    mode === challengeOptions[1] ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  {locale === 'zh' ? '60秒 (深度负荷)' : '60s Protocol'}
+                  {locale === 'zh' ? `${challengeOptions[1]}秒${DEMO_MODE ? '' : ' (深度负荷)'}` : `${challengeOptions[1]}s Protocol`}
                 </button>
               </div>
             )}

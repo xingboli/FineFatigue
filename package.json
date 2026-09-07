@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
+    "build:demo": "vite build --mode demo",
     "start": "node server.mjs",
     "preview": "vite preview",
+    "preview:demo": "node scripts/serve-demo.mjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

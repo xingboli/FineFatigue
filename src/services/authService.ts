@@ -1,4 +1,5 @@
 import { UserProfile } from '../types';
+import { DEMO_MODE } from '../config/runtime';
 
 const STORAGE_KEY_AUTH = 'finefatigue_auth_v2';
 type AuthListener = (user: UserProfile | null) => void;
@@ -10,6 +11,7 @@ class AuthService {
   private listeners = new Set<AuthListener>();
 
   constructor() {
+    if (DEMO_MODE) return;
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY_AUTH) || 'null') as StoredAuth | null;
       if (stored?.user?.id && stored.token) {
@@ -34,6 +36,9 @@ class AuthService {
   }
 
   async login(identifier: string, password: string, mode: 'login' | 'register'): Promise<UserProfile> {
+    if (DEMO_MODE) {
+      throw new Error('Online Demo uses local browser storage only; account login and registration are available in Local Full mode.');
+    }
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -50,6 +55,7 @@ class AuthService {
   }
 
   async validateCurrentSession(): Promise<UserProfile | null> {
+    if (DEMO_MODE) return null;
     if (!this.accessToken) return null;
     try {
       const response = await fetch('/api/auth/me', { headers: this.getAuthHeaders() });
@@ -66,7 +72,7 @@ class AuthService {
   }
 
   logout(): void {
-    if (this.accessToken) void fetch('/api/auth/logout', { method: 'POST', headers: this.getAuthHeaders() });
+    if (!DEMO_MODE && this.accessToken) void fetch('/api/auth/logout', { method: 'POST', headers: this.getAuthHeaders() });
     this.clear(true);
   }
 

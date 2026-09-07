@@ -1,10 +1,14 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, loadEnv} from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({mode}) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const isDemo = mode === 'demo' || env.VITE_DEMO_MODE === 'true';
+
   return {
+    base: isDemo ? '/FineFatigue/' : '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

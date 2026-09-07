@@ -27,14 +27,18 @@ export function analyzeTapping(taps: TapRecord[], totalDurationMs: number = 1500
     rhythmCV = Number(((stdDev / (meanITI || 1)) * 100).toFixed(1));
   }
 
-  // Segment analysis: First 5s, Middle 5s, Last 5s
-  const first5sTaps = taps.filter(t => t.timeFromStart <= 5000).length;
-  const middle5sTaps = taps.filter(t => t.timeFromStart > 5000 && t.timeFromStart <= 10000).length;
-  const last5sTaps = taps.filter(t => t.timeFromStart > 10000 && t.timeFromStart <= 15000).length;
+  // Split the recording into three equal-duration segments. The metric names
+  // are kept for backwards-compatible report data; in Demo they represent
+  // shorter thirds of the real recording.
+  const segmentDurationMs = totalDurationMs / 3;
+  const first5sTaps = taps.filter(t => t.timeFromStart <= segmentDurationMs).length;
+  const middle5sTaps = taps.filter(t => t.timeFromStart > segmentDurationMs && t.timeFromStart <= segmentDurationMs * 2).length;
+  const last5sTaps = taps.filter(t => t.timeFromStart > segmentDurationMs * 2 && t.timeFromStart <= totalDurationMs).length;
 
-  const first5sRate = Number((first5sTaps / 5).toFixed(2));
-  const middle5sRate = Number((middle5sTaps / 5).toFixed(2));
-  const last5sRate = Number((last5sTaps / 5).toFixed(2));
+  const segmentDurationSec = segmentDurationMs / 1000;
+  const first5sRate = Number((first5sTaps / segmentDurationSec).toFixed(2));
+  const middle5sRate = Number((middle5sTaps / segmentDurationSec).toFixed(2));
+  const last5sRate = Number((last5sTaps / segmentDurationSec).toFixed(2));
 
   // Performance Decrement = ((first - last) / first) * 100%
   let performanceDecrement = 0;

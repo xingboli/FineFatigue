@@ -3,6 +3,7 @@ import { HeartHandshake, Sparkles, RefreshCw, CheckCircle, Clock, ShieldCheck, F
 import { MotivationMessage } from '../../types';
 import { AiMotivationService } from '../../services/aiMotivationService';
 import { useI18n } from '../../i18n/context';
+import { DEMO_MODE } from '../../config/runtime';
 
 interface FatigueCareCardProps {
   overallScore: number;
@@ -104,7 +105,7 @@ export const FatigueCareCard: React.FC<FatigueCareCardProps> = ({
                 {locale === 'zh' ? 'AI 疲劳关怀与激励指引' : 'AI Fatigue Care & Motivation Guidance'}
               </h3>
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${theme.tagBg}`}>
-                {advice.source === 'llm_api' ? 'LLM API Connected' : locale === 'zh' ? '本地针对性引擎' : 'Local Rule Engine'}
+                {DEMO_MODE ? (locale === 'zh' ? 'Demo · 本地规则建议' : 'Demo · Local rules') : advice.source === 'llm_api' ? 'LLM API Connected' : locale === 'zh' ? '本地针对性引擎' : 'Local Rule Engine'}
               </span>
             </div>
             <p className="text-[11px] text-slate-500">

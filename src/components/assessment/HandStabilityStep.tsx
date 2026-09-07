@@ -5,6 +5,7 @@ import { WaveformCanvas } from '../charts/WaveformCanvas';
 import { FrequencySpectrumChart } from '../charts/FrequencySpectrumChart';
 import { analyzeHandStability } from '../../utils/signalProcessing';
 import { useI18n } from '../../i18n/context';
+import { EXPERIMENT_TIMINGS } from '../../config/runtime';
 
 interface HandStabilityStepProps {
   currentData: IMUDataPoint | null;
@@ -30,12 +31,14 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
   const { locale } = useI18n();
   const [stage, setStage] = useState<'idle' | 'pre-countdown' | 'recording' | 'finished'>('idle');
   const [countdown, setCountdown] = useState<number>(3);
-  const [timeLeft, setTimeLeft] = useState<number>(15);
+  const [timeLeft, setTimeLeft] = useState<number>(EXPERIMENT_TIMINGS.stabilityMs / 1000);
   const recordedDataRef = useRef<IMUDataPoint[]>([]);
   const [calculatedMetrics, setCalculatedMetrics] = useState<StabilityMetrics | null>(null);
   const [collectionError, setCollectionError] = useState(false);
   const [isRequestingAccess, setIsRequestingAccess] = useState(false);
   const isImuAvailable = sensorStatus.connected && sensorStatus.type === 'real';
+  const stabilityDurationMs = EXPERIMENT_TIMINGS.stabilityMs;
+  const stabilityDurationSec = stabilityDurationMs / 1000;
 
   // Pre-countdown 3-2-1
   useEffect(() => {
@@ -47,7 +50,7 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
       const t = setTimeout(() => {
         setCountdown(0);
         recordedDataRef.current = [];
-        setTimeLeft(15);
+        setTimeLeft(stabilityDurationSec);
         setStage('recording');
       }, 1000);
       return () => clearTimeout(t);
@@ -61,7 +64,7 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
     const startedAt = performance.now();
     const unsubscribe = subscribeToImu(point => recordedDataRef.current.push(point));
     const ticker = window.setInterval(() => {
-      const remaining = Math.max(0, 15000 - (performance.now() - startedAt));
+      const remaining = Math.max(0, stabilityDurationMs - (performance.now() - startedAt));
       setTimeLeft(Math.ceil(remaining / 1000));
     }, 100);
     const timer = window.setTimeout(() => {
@@ -76,9 +79,9 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
       const metrics = analyzeHandStability(recordedDataRef.current, { calibration });
       setCalculatedMetrics(metrics);
       setStage('finished');
-    }, 15000);
+    }, stabilityDurationMs);
     return () => { unsubscribe(); window.clearInterval(ticker); window.clearTimeout(timer); };
-  }, [stage, calibration, subscribeToImu]);
+  }, [stage, calibration, stabilityDurationMs, subscribeToImu]);
 
   const handleStart = () => {
     if (!isImuAvailable) return;
@@ -127,8 +130,8 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
             </h2>
             <p className="text-sm text-slate-500 mt-1 max-w-2xl">
               {locale === 'zh'
-                ? '请将手部自然悬空或平放保持静止 15 秒。IMU 传感器将实时捕获生理性微动、姿态漂移及 0–12 Hz 频带能量分布。'
-                : 'Keep your hand naturally still and relaxed for 15 seconds. The IMU captures physiological micro-motion, positional drift, and frequency power in the 0–12 Hz band.'}
+                ? `请将手部自然悬空或平放保持静止 ${stabilityDurationSec} 秒。IMU 传感器将实时捕获生理性微动、姿态漂移及 0–12 Hz 频带能量分布。`
+                : `Keep your hand naturally still and relaxed for ${stabilityDurationSec} seconds. The IMU captures physiological micro-motion, positional drift, and frequency power in the 0–12 Hz band.`}
             </p>
           </div>
 
@@ -152,7 +155,7 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
           <ShieldAlert className="w-7 h-7 text-amber-600 mx-auto" />
           <div>
             <h3 className="font-bold text-amber-950">{locale === 'zh' ? '无法开始稳定性采集：IMU 传感器不可用' : 'Cannot start stability recording: IMU unavailable'}</h3>
-            <p className="text-xs text-amber-800 mt-1">{locale === 'zh' ? '此实验项不会生成替代数据或默认分数。请在手机上授权运动与方向访问，然后重新开始。' : 'This study item will not generate substitute data or a default score. Authorize Motion & Orientation access on the phone, then try again.'}</p>
+            <p className="text-xs text-amber-800 mt-1">{sensorStatus.permission === 'unsupported' ? (locale === 'zh' ? '当前设备未提供可用的运动传感器，可使用支持 IMU 的手机通过 HTTPS 打开本页面体验相关功能。' : 'This device does not provide a usable motion sensor. Open this HTTPS page on a phone with IMU support to try this feature.') : (locale === 'zh' ? '此实验项不会生成替代数据或默认分数。请在手机上授权运动与方向访问，然后重新开始。' : 'This study item will not generate substitute data or a default score. Authorize Motion & Orientation access on the phone, then try again.')}</p>
           </div>
           <button
             type="button"
@@ -170,11 +173,11 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 border border-slate-200/70 rounded-xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-bold font-mono">
-                {stage === 'recording' ? `${timeLeft}s` : '15s'}
+                {stage === 'recording' ? `${timeLeft}s` : `${stabilityDurationSec}s`}
               </div>
               <div>
                 <div className="text-sm font-semibold text-slate-900">
-                  {stage === 'idle' && (locale === 'zh' ? '已准备就绪，点击开始采集 15 秒静止稳定性' : 'Ready to Begin Hand Stability Recording')}
+                  {stage === 'idle' && (locale === 'zh' ? `已准备就绪，点击开始采集 ${stabilityDurationSec} 秒静止稳定性` : `Ready to Begin ${stabilityDurationSec}-Second Hand Stability Recording`)}
                   {stage === 'pre-countdown' && (locale === 'zh' ? `倒计时 ${countdown} 秒... 请保持手部绝对静止！` : `Starting in ${countdown}... Hold still!`)}
                   {stage === 'recording' && (locale === 'zh' ? `正在采集手部静止微动信号 (剩余 ${timeLeft} 秒)` : `Recording Hand Stability (${timeLeft}s remaining)`)}
                 </div>
@@ -234,7 +237,7 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
                 </h3>
               </div>
               <span className="text-xs font-mono text-slate-400">
-                {locale === 'zh' ? '15秒时域频域特征提取完成' : '15s Epoch Processed'}
+                {locale === 'zh' ? `${stabilityDurationSec}秒时域频域特征提取完成` : `${stabilityDurationSec}s Epoch Processed`}
               </span>
             </div>
 

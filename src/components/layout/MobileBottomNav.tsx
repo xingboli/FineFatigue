@@ -17,6 +17,7 @@ import {
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
 import { UserProfile, CloudSyncState } from '../../types';
+import { DEMO_MODE } from '../../config/runtime';
 
 interface MobileBottomNavProps {
   currentTab: string;
@@ -112,7 +113,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 <div>
                   <div className="text-sm font-bold text-slate-900">{currentUser?.name || 'Guest'}</div>
                   <div className="text-[10px] text-slate-400 font-mono">
-                    ID: {currentUser?.participantCode || 'NO-ID'} · {syncState.status === 'synced' ? '☁️ 云端已同步' : '🔄 待同步'}
+                    {DEMO_MODE ? (locale === 'zh' ? '数据仅保存在本机浏览器' : 'Data stays in this browser') : `ID: ${currentUser?.participantCode || 'NO-ID'} · ${syncState.status === 'synced' ? '☁️ 云端已同步' : '🔄 待同步'}`}
                   </div>
                 </div>
               </div>
@@ -126,7 +127,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             </div>
 
             {/* Quick Action Buttons */}
-            <div className="grid grid-cols-2 gap-2">
+            {!DEMO_MODE && <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -150,7 +151,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 <Cloud className="w-4 h-4 text-blue-600" />
                 <span>{locale === 'zh' ? '云端同步中心' : 'Cloud Sync'}</span>
               </button>
-            </div>
+            </div>}
 
             {/* Navigation List */}
             <div className="space-y-1 pt-1">

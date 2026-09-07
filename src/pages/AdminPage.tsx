@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Download, RefreshCw, Save, ShieldAlert, UsersRound } from 'lucide-react';
 import { authService } from '../services/authService';
+import { DEMO_MODE } from '../config/runtime';
 import { useI18n } from '../i18n/context';
 
 type CompensationStatus = 'pending' | 'approved' | 'paid';
@@ -28,8 +29,18 @@ export const AdminPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Unable to load administrator data.');
     } finally { setIsLoading(false); }
   };
-  useEffect(() => { void loadAccounts(); }, []);
+  useEffect(() => {
+    if (DEMO_MODE) {
+      setIsLoading(false);
+      return;
+    }
+    void loadAccounts();
+  }, []);
   const downloadCsv = async (path: string, filename: string) => {
+    if (DEMO_MODE) {
+      setError(locale === 'zh' ? '在线演示模式不提供管理员 CSV 导出；请使用本地完整版。' : 'Administrator CSV exports are available in Local Full mode only.');
+      return;
+    }
     try {
       const response = await fetch(path, { headers: authService.getAuthHeaders() });
       if (!response.ok) throw new Error('CSV export failed.');

@@ -18,6 +18,8 @@ import { authService } from './services/authService';
 import { cloudSyncService } from './services/cloudSyncService';
 import { RealHardwareSensorAdapter } from './services/sensorAdapter';
 import { CognitionStorage } from './services/cognitionStorage';
+import { DEMO_MODE } from './config/runtime';
+import { DemoModeBanner } from './components/common/DemoModeBanner';
 import { 
   AssessmentReportData, 
   IMUDataPoint, 
@@ -63,9 +65,11 @@ export default function App() {
     setSubjectiveRecords(loadedSubjective);
     setCognitionResults(CognitionStorage.getResults());
 
-    const savedSubject = localStorage.getItem('finefatigue_subject_id');
-    if (savedSubject) {
-      setSubjectId(savedSubject);
+    if (!DEMO_MODE) {
+      const savedSubject = localStorage.getItem('finefatigue_subject_id');
+      if (savedSubject) {
+        setSubjectId(savedSubject);
+      }
     }
   }, []);
 
@@ -215,6 +219,7 @@ export default function App() {
 
         {/* Content View with bottom padding for mobile navigation bar */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
+          <DemoModeBanner />
           {currentTab === 'overview' && (
             <OverviewPage
               subjectId={subjectId}
@@ -307,19 +312,23 @@ export default function App() {
       </div>
 
       {/* Auth / Account Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentUser={currentUser}
-        onUserChanged={user => setCurrentUser(user)}
-      />
+      {!DEMO_MODE && (
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          currentUser={currentUser}
+          onUserChanged={user => setCurrentUser(user)}
+        />
+      )}
 
       {/* Cloud Sync Modal */}
-      <CloudSyncModal
-        isOpen={isSyncModalOpen}
-        onClose={() => setIsSyncModalOpen(false)}
-        syncState={syncState}
-      />
+      {!DEMO_MODE && (
+        <CloudSyncModal
+          isOpen={isSyncModalOpen}
+          onClose={() => setIsSyncModalOpen(false)}
+          syncState={syncState}
+        />
+      )}
 
     </div>
   );

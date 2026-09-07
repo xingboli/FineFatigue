@@ -3,8 +3,9 @@ import { Play, RotateCcw, ArrowRight, CheckCircle, Zap, AlertTriangle } from 'lu
 import { ReactionMetrics, ReactionTrial } from '../../types';
 import { ReactionTrialChart } from '../charts/ReactionTrialChart';
 import { useI18n } from '../../i18n/context';
+import { EXPERIMENT_TIMINGS } from '../../config/runtime';
 
-const TOTAL_TRIALS = 30;
+const TOTAL_TRIALS = EXPERIMENT_TIMINGS.reactionTrials;
 
 interface ReactionStepProps {
   isPostFatigue?: boolean;
@@ -37,8 +38,8 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
     setStage('waiting');
     setLastReactionMs(null);
 
-    // PVT-style randomized inter-stimulus interval: 2–10 seconds.
-    const randomDelay = Math.floor(2000 + Math.random() * 8000);
+    // PVT-style randomized inter-stimulus interval, shortened only for Demo.
+    const randomDelay = Math.floor(EXPERIMENT_TIMINGS.reactionMinDelayMs + Math.random() * (EXPERIMENT_TIMINGS.reactionMaxDelayMs - EXPERIMENT_TIMINGS.reactionMinDelayMs));
 
     waitTimerRef.current = window.setTimeout(() => {
       signalTimeRef.current = Date.now();
@@ -193,12 +194,12 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
               </div>
               <div className="max-w-md">
                 <h3 className="text-lg font-bold text-slate-900">
-                  {locale === 'zh' ? '共 30 轮随机反应测试' : '30 Randomized Reaction Trials'}
+                  {locale === 'zh' ? `共 ${TOTAL_TRIALS} 轮随机反应测试` : `${TOTAL_TRIALS} Randomized Reaction Trials`}
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
                   {locale === 'zh'
-                    ? '每轮等待 2–10 秒后绿色信号出现。若在黄色“等待信号”状态下提前点击，系统将标记为抢跑并重置该轮。'
-                    : 'The green signal appears after a randomized 2–10 second wait. Early taps are flagged and the trial is repeated.'}
+                    ? `每轮等待 ${EXPERIMENT_TIMINGS.reactionMinDelayMs / 1000}–${EXPERIMENT_TIMINGS.reactionMaxDelayMs / 1000} 秒后绿色信号出现。若在黄色“等待信号”状态下提前点击，系统将标记为抢跑并重置该轮。`
+                    : `The green signal appears after a randomized ${EXPERIMENT_TIMINGS.reactionMinDelayMs / 1000}–${EXPERIMENT_TIMINGS.reactionMaxDelayMs / 1000} second wait. Early taps are flagged and the trial is repeated.`}
                 </p>
               </div>
               <button
@@ -293,7 +294,7 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
                 </h3>
               </div>
               <span className="text-xs font-mono text-slate-400">
-                {locale === 'zh' ? '30 轮有效反应测试已完成' : '30 valid reaction trials completed'}
+                {locale === 'zh' ? `${TOTAL_TRIALS} 轮有效反应测试已完成` : `${TOTAL_TRIALS} valid reaction trials completed`}
               </span>
             </div>
 

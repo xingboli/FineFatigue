@@ -19,6 +19,7 @@ import {
 import { useI18n } from '../../i18n/context';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
 import { UserProfile, CloudSyncState } from '../../types';
+import { DEMO_MODE } from '../../config/runtime';
 
 export type PageId = 'overview' | 'assessment' | 'cognition' | 'sessions' | 'sensor_monitor' | 'report' | 'star_catcher' | 'settings' | 'admin' | 'monitor' | 'reports' | 'game';
 
@@ -169,7 +170,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Footer / System Status, Cloud Sync & Language Toggle */}
       <div className="p-4 border-t border-slate-100 space-y-2.5">
         {/* Cloud Sync Status Button */}
-        {syncState && (
+        {DEMO_MODE ? (
+          <div className="w-full rounded-xl border border-cyan-200/70 bg-cyan-50/70 px-2.5 py-2 text-xs text-left">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-cyan-900">{locale === 'zh' ? '本机数据' : 'Browser data'}</span>
+              <span className="font-mono text-[10px] font-bold text-cyan-700">LocalStorage</span>
+            </div>
+            <div className="mt-1 text-[10px] leading-tight text-cyan-800/75">
+              {locale === 'zh' ? '演示模式不连接云端服务' : 'Demo mode does not connect to cloud services'}
+            </div>
+          </div>
+        ) : syncState && (
           <button
             type="button"
             onClick={onOpenSync}

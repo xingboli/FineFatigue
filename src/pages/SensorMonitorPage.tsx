@@ -51,7 +51,7 @@ export const SensorMonitorPage: React.FC<SensorMonitorPageProps> = ({ sensorStat
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8 text-center">
           <ShieldAlert className="w-8 h-8 text-amber-600 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-amber-950">{locale === 'zh' ? 'IMU 传感器不可用' : 'IMU Sensor Unavailable'}</h2>
-          <p className="text-sm text-amber-800 mt-2 max-w-xl mx-auto">{sensorStatus.permission === 'unsupported' ? (locale === 'zh' ? '当前设备或浏览器没有提供 DeviceMotion 接口，无法进行 IMU 实验采集。' : 'This device or browser does not expose DeviceMotion, so IMU experiment collection is unavailable.') : (locale === 'zh' ? '请点击“启用手机 IMU”，并在系统弹窗中允许“运动与方向”访问。授权后轻轻移动设备，真实数据才会出现。' : 'Select “Enable phone IMU” and allow Motion & Orientation access. After permission, gently move the device before physical data appears.')}</p>
+          <p className="text-sm text-amber-800 mt-2 max-w-xl mx-auto">{sensorStatus.permission === 'unsupported' ? (locale === 'zh' ? '当前设备未提供可用的运动传感器，可使用支持 IMU 的手机通过 HTTPS 打开本页面体验相关功能。' : 'This device does not provide a usable motion sensor. Open this HTTPS page on a phone with IMU support to try this feature.') : (locale === 'zh' ? '请点击“启用手机 IMU”，并在系统弹窗中允许“运动与方向”访问。授权后轻轻移动设备，真实数据才会出现。' : 'Select “Enable phone IMU” and allow Motion & Orientation access. After permission, gently move the device before physical data appears.')}</p>
         </div>
       ) : (
         <div className="space-y-6">

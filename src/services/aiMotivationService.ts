@@ -1,4 +1,5 @@
 import { MotivationMessage } from '../types';
+import { DEMO_MODE } from '../config/runtime';
 
 export type FatigueLevelTier = 'optimal' | 'mild' | 'moderate' | 'high' | 'severe';
 
@@ -296,6 +297,10 @@ export class AiMotivationService {
   static async getAdvice(request: MotivationRequest): Promise<MotivationMessage> {
     const lang = request.language || 'zh';
     const tier = this.determineTier(request.overallScore);
+
+    if (DEMO_MODE) {
+      return this.getLocalTargetedAdvice(tier, lang);
+    }
 
     // The same-origin LAN endpoint owns the provider configuration and key.
     try {

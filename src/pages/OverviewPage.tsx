@@ -18,6 +18,7 @@ import { AssessmentReportData, CognitionMemoryResult, SensorStatus, SubjectiveFa
 import { useI18n } from '../i18n/context';
 import { FatigueCareCard } from '../components/common/FatigueCareCard';
 import { HistoryTimeComparisonChart } from '../components/charts/HistoryTimeComparisonChart';
+import { DEMO_MODE, EXPERIMENT_TIMINGS } from '../config/runtime';
 
 interface OverviewPageProps {
   subjectId: string;
@@ -76,6 +77,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <span className="text-xs text-slate-400 font-mono">
                 {t.overview.tagStream}
               </span>
+              {DEMO_MODE && (
+                <span className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-800">
+                  {locale === 'zh' ? '快速体验' : 'Quick Demo'}
+                </span>
+              )}
             </div>
 
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
@@ -170,7 +176,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             <span className="text-xs text-slate-400">{t.overview.recordedCount}</span>
           </div>
           <div className="mt-2 text-[11px] text-slate-500">
-            {t.overview.localStorageNote}
+            {DEMO_MODE
+              ? (locale === 'zh' ? '仅保存在当前浏览器，不会上传服务器' : 'Stored in this browser; nothing is uploaded')
+              : t.overview.localStorageNote}
           </div>
         </div>
 
@@ -248,7 +256,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               02
             </div>
             <h3 className="text-sm font-bold text-slate-800">{t.overview.dim2Title}</h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">{t.overview.dim2Desc}</p>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">{DEMO_MODE
+              ? (locale === 'zh' ? `${EXPERIMENT_TIMINGS.tappingMs / 1000} 秒真实双靶交替敲击，记录节律变异性与疲劳递减率。` : `${EXPERIMENT_TIMINGS.tappingMs / 1000}-second physical alternating tapping with cadence variability and performance decrement.`)
+              : t.overview.dim2Desc}</p>
           </div>
 
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
@@ -256,7 +266,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               03
             </div>
             <h3 className="text-sm font-bold text-slate-800">{t.overview.dim3Title}</h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">{t.overview.dim3Desc}</p>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">{DEMO_MODE
+              ? (locale === 'zh' ? `${EXPERIMENT_TIMINGS.reactionTrials} 轮真实随机反应测试，记录反应时与抢跑。` : `${EXPERIMENT_TIMINGS.reactionTrials} physical randomized reaction trials with reaction time and early taps.`)
+              : t.overview.dim3Desc}</p>
           </div>
 
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">

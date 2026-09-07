@@ -4,6 +4,7 @@ import { TapRecord, TappingMetrics } from '../../types';
 import { analyzeTapping } from '../../utils/tappingAnalysis';
 import { TapIntervalChart } from '../charts/TapIntervalChart';
 import { useI18n } from '../../i18n/context';
+import { EXPERIMENT_TIMINGS } from '../../config/runtime';
 
 interface FingerTappingStepProps {
   isPostFatigue?: boolean;
@@ -18,7 +19,7 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
 }) => {
   const { locale } = useI18n();
   const [stage, setStage] = useState<'idle' | 'recording' | 'finished'>('idle');
-  const [timeLeft, setTimeLeft] = useState<number>(15);
+  const [timeLeft, setTimeLeft] = useState<number>(EXPERIMENT_TIMINGS.tappingMs / 1000);
   const [tapCount, setTapCount] = useState<number>(0);
   const [currentRate, setCurrentRate] = useState<number>(0);
   const [expectedTarget, setExpectedTarget] = useState<'left' | 'right' | null>(null);
@@ -29,8 +30,10 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
   const tapsRef = useRef<TapRecord[]>([]);
   const [calculatedMetrics, setCalculatedMetrics] = useState<TappingMetrics | null>(null);
   const [collectionError, setCollectionError] = useState(false);
+  const tappingDurationMs = EXPERIMENT_TIMINGS.tappingMs;
+  const tappingDurationSec = tappingDurationMs / 1000;
 
-  // 15 seconds timer
+  // Timer duration comes from the active runtime target.
   useEffect(() => {
     if (stage !== 'recording') return;
     if (timeLeft > 0) {
@@ -49,18 +52,18 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
         setStage('idle');
         return;
       }
-      const metrics = analyzeTapping(tapsRef.current, 15000);
+      const metrics = analyzeTapping(tapsRef.current, tappingDurationMs);
       setCalculatedMetrics(metrics);
       setStage('finished');
     }
-  }, [stage, timeLeft]);
+  }, [stage, timeLeft, tappingDurationMs]);
 
   const handleStart = () => {
     tapsRef.current = [];
     setCollectionError(false);
     setTapCount(0);
     setCurrentRate(0);
-    setTimeLeft(15);
+    setTimeLeft(tappingDurationSec);
     startTimeRef.current = Date.now();
     lastTapTimeRef.current = Date.now();
     setExpectedTarget('left');
@@ -126,8 +129,8 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
             </h2>
             <p className="text-sm text-slate-500 mt-1 max-w-2xl">
               {locale === 'zh'
-                ? '使用食指与中指在 15 秒内尽可能快速、稳定地交替敲击“左”和“右”靶标。评估神经肌肉敲击节律、间隔变异性及动作减速衰减。'
-                : 'Tap the LEFT and RIGHT targets alternately as quickly and steadily as possible for 15 seconds. Measures motor tempo, rhythm variability, and neuromuscular fatigue deceleration.'}
+                ? `使用食指与中指在 ${tappingDurationSec} 秒内尽可能快速、稳定地交替敲击“左”和“右”靶标。评估神经肌肉敲击节律、间隔变异性及动作减速衰减。`
+                : `Tap the LEFT and RIGHT targets alternately as quickly and steadily as possible for ${tappingDurationSec} seconds. Measures motor tempo, rhythm variability, and neuromuscular fatigue deceleration.`}
             </p>
           </div>
 
@@ -187,7 +190,7 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
                 className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold shadow-xs transition-all"
               >
                 <Play className="w-4 h-4" />
-                <span>{locale === 'zh' ? '开始敲击测试 (15秒)' : 'Start Tapping Test (15s)'}</span>
+                <span>{locale === 'zh' ? `开始敲击测试 (${tappingDurationSec}秒)` : `Start Tapping Test (${tappingDurationSec}s)`}</span>
               </button>
             </div>
           ) : (
@@ -259,7 +262,7 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
                 </h3>
               </div>
               <span className="text-xs font-mono text-slate-400">
-                {locale === 'zh' ? '15秒测试已完成' : '15s Epoch Complete'}
+                {locale === 'zh' ? `${tappingDurationSec}秒测试已完成` : `${tappingDurationSec}s Epoch Complete`}
               </span>
             </div>
 

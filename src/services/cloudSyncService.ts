@@ -2,6 +2,7 @@ import { CloudSyncState, AssessmentReportData, CognitionMemoryResult, StarCatche
 import { StorageService } from './storage';
 import { authService } from './authService';
 import { CognitionStorage } from './cognitionStorage';
+import { DEMO_MODE } from '../config/runtime';
 
 const STORAGE_KEY_SYNC_STATE = 'finefatigue_cloud_sync_state_v1';
 const STORAGE_KEY_DEVICE_ID = 'finefatigue_device_id_v1';
@@ -39,12 +40,12 @@ class CloudSyncService {
     }
     const saved = this.readSavedState();
     this.state = {
-      status: saved.lastSyncTime ? 'pending' : 'offline',
+      status: DEMO_MODE ? 'offline' : saved.lastSyncTime ? 'pending' : 'offline',
       lastSyncTime: saved.lastSyncTime || null,
       pendingChangesCount: 0,
       cloudDeviceId: deviceId
     };
-    window.addEventListener('online', () => {
+    if (!DEMO_MODE) window.addEventListener('online', () => {
       if (this.state.status === 'offline' || this.state.status === 'pending') {
         this.retryCount = 0;
         void this.syncNow();
@@ -63,6 +64,11 @@ class CloudSyncService {
   }
 
   markPending(): void {
+    if (DEMO_MODE) {
+      this.state = { ...this.state, status: 'offline', pendingChangesCount: 0 };
+      this.notify();
+      return;
+    }
     this.state.status = 'pending';
     this.state.pendingChangesCount += 1;
     this.retryCount = 0;
@@ -72,6 +78,7 @@ class CloudSyncService {
   }
 
   async syncNow(): Promise<{ success: boolean; syncedItemsCount: number; latencyMs: number }> {
+    if (DEMO_MODE) return { success: false, syncedItemsCount: 0, latencyMs: 0 };
     if (!authService.getAccessToken() || authService.getCurrentUser()?.role !== 'participant') return this.failSync(0);
     if (this.state.status === 'syncing') return { success: true, syncedItemsCount: 0, latencyMs: 0 };
 
