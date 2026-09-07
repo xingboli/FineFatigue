@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, Clock3, RotateCcw, ShieldCheck, Target } from 'lucide-react';
+import { Brain, Download, RotateCcw, ShieldCheck, Target } from 'lucide-react';
 import { CognitionMemoryResult } from '../../types';
 import { cognitionSummary } from '../../utils/cognitionMetrics';
 
@@ -14,6 +14,15 @@ const percent = (value: number) => `${Math.round(value * 100)}%`;
 
 export const CognitionResult: React.FC<CognitionResultProps> = ({ result, locale, onRetry, onBack }) => {
   const zh = locale === 'zh';
+  const downloadRawResult = () => {
+    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${result.id}-raw.json`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
   return (
     <section className="max-w-3xl mx-auto space-y-5">
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
@@ -44,7 +53,7 @@ export const CognitionResult: React.FC<CognitionResultProps> = ({ result, locale
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 flex items-start gap-2"><ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />{zh ? '本测试仅用于科研与功能演示，结果仅反映本次任务中的交互表现，不构成医学诊断。' : 'This test is for research and functional demonstration only. It reflects performance in this task and is not a medical diagnosis.'}</div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-end gap-2"><button type="button" onClick={onBack} className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700">{zh ? '返回认知记录' : 'Back to records'}</button><button type="button" onClick={onRetry} className="inline-flex justify-center items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold"><RotateCcw className="w-3.5 h-3.5" />{zh ? '重新测试' : 'Test again'}</button></div>
+      <div className="flex flex-col sm:flex-row justify-end gap-2"><button type="button" onClick={downloadRawResult} className="inline-flex justify-center items-center gap-1.5 px-4 py-2.5 rounded-xl border border-violet-200 text-xs font-semibold text-violet-700"><Download className="w-3.5 h-3.5" />{zh ? '下载本次原始 JSON' : 'Download raw JSON'}</button><button type="button" onClick={onBack} className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700">{zh ? '返回认知记录' : 'Back to records'}</button><button type="button" onClick={onRetry} className="inline-flex justify-center items-center gap-1.5 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold"><RotateCcw className="w-3.5 h-3.5" />{zh ? '重新测试' : 'Test again'}</button></div>
     </section>
   );
 };

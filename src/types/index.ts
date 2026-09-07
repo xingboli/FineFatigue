@@ -21,12 +21,24 @@ export interface SensorStatus {
 
 export interface StabilityMetrics {
   motionRMS: number; // in g, e.g. 0.064
+  motionRMSRaw: number;
   dominantFrequency: number; // in Hz, e.g. 8.2
   totalPower0_12Hz: number;
   spectralEntropy: number; // 0 to 1, e.g. 0.51
+  spectralEntropyRaw: number;
   stabilityScore: number; // 0 to 100, e.g. 84
+  stabilityScoreRaw: number;
+  measuredSamplingRate: number;
   spectrum: { freq: number; power: number }[];
   waveforms: IMUDataPoint[];
+}
+
+export interface IMUCalibration {
+  gravityVector: { ax: number; ay: number; az: number };
+  sampleCount: number;
+  measuredSamplingRate: number;
+  startedAt: number;
+  completedAt: number;
 }
 
 export interface TapRecord {
@@ -50,6 +62,7 @@ export interface TappingMetrics {
 
 export interface ReactionTrial {
   trialNumber: number;
+  timestamp: number;
   reactionTimeMs: number;
   isEarly: boolean;
 }
@@ -61,6 +74,8 @@ export interface ReactionMetrics {
   bestReactionMs: number;
   worstReactionMs: number;
   missRate: number; // %
+  lapseCount: number; // valid responses >= 500 ms
+  meanReciprocalReaction: number; // 1/ms
 }
 
 export interface Point2D {
@@ -116,6 +131,9 @@ export interface AssessmentReportData {
 }
 
 export interface StarCatcherResult {
+  id: string;
+  timestamp: number;
+  taskVersion: string;
   score: number;
   combo: number;
   starsCollected: number;
@@ -126,6 +144,12 @@ export interface StarCatcherResult {
   movementSmoothness: number;
   fineMotorScore: number;
   durationSec: number;
+  trackingRMSEPx: number;
+  onTargetPercent: number;
+  phaseLagMs: number;
+  noGoEntries: number;
+  noGoDwellMs: number;
+  path: { x: number; y: number; timestamp: number; targetX: number; targetY: number; inNoGo: boolean }[];
 }
 
 export type HandStabilityMetrics = StabilityMetrics;
@@ -173,7 +197,9 @@ export interface SubjectiveFatigueRecord {
 }
 
 export interface MemoryInteractionEvent {
-  timestamp: number;
+  timestamp: number; // Wall-clock epoch ms, for ordering across records
+  elapsedMs: number; // Monotonic task-relative time, for trial timing
+  interactionIndex: number;
   cardId: string;
   pairId: string;
   attemptIndex: number;
@@ -190,13 +216,18 @@ export interface MemoryAttempt {
   secondPairId: string;
   startedAt: number;
   completedAt: number;
+  startedElapsedMs: number;
+  completedElapsedMs: number;
   responseTimeMs: number;
   matched: boolean;
 }
 
 export interface CognitionMemoryResult {
   id: string;
+  schemaVersion: number;
+  taskVersion: string;
   timestamp: string;
+  startedAt: number;
   completedAt: number;
   totalDuration: number;
   totalPairs: number;
@@ -219,7 +250,9 @@ export interface CognitionMemoryResult {
   reactionTimeChange: number;
   errorRateChange: number;
   memoryScore: number;
+  responseSpeedScoreRaw: number;
   responseSpeedScore: number;
+  cognitiveStabilityScoreRaw: number;
   cognitiveStabilityScore: number;
   interactions: MemoryInteractionEvent[];
   attempts: MemoryAttempt[];

@@ -1,9 +1,22 @@
-import { AssessmentReportData, SubjectiveFatigueRecord } from '../types';
+import { AssessmentReportData, StarCatcherResult, SubjectiveFatigueRecord } from '../types';
 
 const STORAGE_KEY_SESSIONS = 'finefatigue_sessions_v1';
 const STORAGE_KEY_SETTINGS = 'finefatigue_settings_v1';
 const STORAGE_KEY_ACTIVE_REPORT = 'finefatigue_active_report_v1';
 const STORAGE_KEY_SUBJECTIVE = 'finefatigue_subjective_v1';
+const STORAGE_KEY_GAMES = 'finefatigue_games_v2';
+
+export class LocalStorageWriteError extends Error {
+  constructor(public readonly code: 'quota' | 'unavailable') { super(code); }
+}
+
+function writeLocalStorage(key: string, value: unknown): void {
+  try { localStorage.setItem(key, JSON.stringify(value)); }
+  catch (error) {
+    const quota = error instanceof DOMException && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED');
+    throw new LocalStorageWriteError(quota ? 'quota' : 'unavailable');
+  }
+}
 
 export interface AppSettings {
   subjectId: string;
@@ -39,11 +52,7 @@ export const StorageService = {
   },
 
   saveSessions(sessions: AssessmentReportData[]): void {
-    try {
-      localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(sessions));
-    } catch (e) {
-      console.error('Failed to save sessions', e);
-    }
+    writeLocalStorage(STORAGE_KEY_SESSIONS, sessions);
   },
 
   addSession(session: AssessmentReportData): void {
@@ -81,11 +90,7 @@ export const StorageService = {
   },
 
   setActiveReport(report: AssessmentReportData): void {
-    try {
-      localStorage.setItem(STORAGE_KEY_ACTIVE_REPORT, JSON.stringify(report));
-    } catch (e) {
-      console.error('Failed to set active report', e);
-    }
+    writeLocalStorage(STORAGE_KEY_ACTIVE_REPORT, report);
   },
 
   getSettings(): AppSettings {
@@ -101,17 +106,14 @@ export const StorageService = {
   },
 
   saveSettings(settings: AppSettings): void {
-    try {
-      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-    } catch (e) {
-      console.error('Failed to save settings', e);
-    }
+    writeLocalStorage(STORAGE_KEY_SETTINGS, settings);
   },
 
   resetAllData(): void {
     localStorage.removeItem(STORAGE_KEY_SESSIONS);
     localStorage.removeItem(STORAGE_KEY_ACTIVE_REPORT);
     localStorage.removeItem(STORAGE_KEY_SUBJECTIVE);
+    localStorage.removeItem(STORAGE_KEY_GAMES);
   },
 
   resetToDefaults(): void {
@@ -131,11 +133,7 @@ export const StorageService = {
   },
 
   saveSubjectiveFatigueRecords(records: SubjectiveFatigueRecord[]): void {
-    try {
-      localStorage.setItem(STORAGE_KEY_SUBJECTIVE, JSON.stringify(records));
-    } catch (e) {
-      console.error('Failed to save subjective fatigue records', e);
-    }
+    writeLocalStorage(STORAGE_KEY_SUBJECTIVE, records);
   },
 
   saveSubjectiveFatigueRecord(record: SubjectiveFatigueRecord): void {
@@ -159,5 +157,7 @@ export const StorageService = {
   deleteSubjectiveFatigueRecord(id: string): void {
     const current = this.getSubjectiveFatigueRecords().filter(r => r.id !== id);
     this.saveSubjectiveFatigueRecords(current);
-  }
+  },
+  getGameResults(): StarCatcherResult[] { try { const raw = localStorage.getItem(STORAGE_KEY_GAMES); const parsed = raw ? JSON.parse(raw) : []; return Array.isArray(parsed) ? parsed : []; } catch { return []; } },
+  addGameResult(result: StarCatcherResult): void { const current = this.getGameResults(); writeLocalStorage(STORAGE_KEY_GAMES, [result, ...current.filter(item => item.id !== result.id)]); }
 };

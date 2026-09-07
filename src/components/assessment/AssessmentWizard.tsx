@@ -9,7 +9,8 @@ import {
   AssessmentReportData,
   SubjectiveFatigueRecord,
   SensorStatus,
-  IMUDataPoint
+  IMUDataPoint,
+  IMUCalibration
 } from '../../types';
 import { CalibrationStep } from './CalibrationStep';
 import { HandStabilityStep } from './HandStabilityStep';
@@ -28,6 +29,7 @@ interface AssessmentWizardProps {
   sensorStatus: SensorStatus;
   currentData: IMUDataPoint | null;
   onRequestImuAccess: () => Promise<boolean>;
+  subscribeToImu: (listener: (point: IMUDataPoint) => void) => () => void;
   onComplete: (report: AssessmentReportData) => void;
   onCancel: () => void;
 }
@@ -37,11 +39,14 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
   sensorStatus,
   currentData,
   onRequestImuAccess,
+  subscribeToImu,
   onComplete,
   onCancel
 }) => {
   const { t, locale } = useI18n();
   const [currentStep, setCurrentStep] = useState<AssessmentStep>(AssessmentStep.CALIBRATION);
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [calibration, setCalibration] = useState<IMUCalibration | null>(null);
 
   // Collected Baseline Data
   const [baselineStability, setBaselineStability] = useState<HandStabilityMetrics | null>(null);
@@ -60,7 +65,8 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
   const [postTracing, setPostTracing] = useState<TracingMetrics | null>(null);
 
   // Step 0: Calibration Done
-  const handleCalibrationComplete = () => {
+  const handleCalibrationComplete = (nextCalibration: IMUCalibration) => {
+    setCalibration(nextCalibration);
     setCurrentStep(AssessmentStep.BASELINE_STABILITY);
   };
 
@@ -154,13 +160,13 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
     subjectiveRecord.linkedSessionId = report.id;
 
     // Persist session report
-    StorageService.saveSession(report);
-
-    // Persist subjective fatigue record
-    StorageService.saveSubjectiveFatigueRecord(subjectiveRecord);
-
-    // Transition to report view
-    onComplete(report);
+    try {
+      StorageService.saveSession(report);
+      StorageService.saveSubjectiveFatigueRecord(subjectiveRecord);
+      onComplete(report);
+    } catch {
+      setStorageError(locale === 'zh' ? '浏览器本地存储空间不足，无法保存本次实验。请先导出或清理旧记录，再重新提交。' : 'Browser storage could not save this experiment. Export or clear older records, then submit again.');
+    }
   };
 
   // Step breadcrumb helper: 测验1 (基准 4项) + 疲劳诱发 + 测验2 (复测 4项) + 疲劳自评 (多维指标采集)
@@ -235,6 +241,7 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
 
   return (
     <div className="space-y-6">
+      {storageError && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{storageError}</div>}
       {/* Battery Stepper Header */}
       <div className="bg-white px-6 py-4 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -286,8 +293,8 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
         {currentStep === AssessmentStep.CALIBRATION && (
           <CalibrationStep
             sensorStatus={sensorStatus}
-            currentData={currentData}
             onRequestImuAccess={onRequestImuAccess}
+            subscribeToImu={subscribeToImu}
             onComplete={handleCalibrationComplete}
           />
         )}
@@ -297,6 +304,8 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
             sensorStatus={sensorStatus}
             currentData={currentData}
             onRequestImuAccess={onRequestImuAccess}
+            calibration={calibration!}
+            subscribeToImu={subscribeToImu}
             isPostFatigue={false}
             onComplete={handleBaselineStabilityComplete}
           />
@@ -337,6 +346,8 @@ export const AssessmentWizard: React.FC<AssessmentWizardProps> = ({
             sensorStatus={sensorStatus}
             currentData={currentData}
             onRequestImuAccess={onRequestImuAccess}
+            calibration={calibration!}
+            subscribeToImu={subscribeToImu}
             isPostFatigue={true}
             onComplete={handlePostStabilityComplete}
           />

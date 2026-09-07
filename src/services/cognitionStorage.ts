@@ -2,6 +2,13 @@ import { CognitionMemoryResult } from '../types';
 
 const STORAGE_KEY_COGNITION = 'finefatigue_cognition_memory_v1';
 
+export class CognitionStorageError extends Error {
+  constructor(public readonly code: 'quota' | 'unavailable') {
+    super(code);
+    this.name = 'CognitionStorageError';
+  }
+}
+
 export const CognitionStorage = {
   getResults(): CognitionMemoryResult[] {
     try {
@@ -14,7 +21,14 @@ export const CognitionStorage = {
   },
 
   saveResults(results: CognitionMemoryResult[]): void {
-    localStorage.setItem(STORAGE_KEY_COGNITION, JSON.stringify(results));
+    try {
+      localStorage.setItem(STORAGE_KEY_COGNITION, JSON.stringify(results));
+    } catch (error) {
+      const isQuotaError = error instanceof DOMException && (
+        error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+      );
+      throw new CognitionStorageError(isQuotaError ? 'quota' : 'unavailable');
+    }
   },
 
   addResult(result: CognitionMemoryResult): void {

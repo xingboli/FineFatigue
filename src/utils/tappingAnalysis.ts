@@ -39,7 +39,7 @@ export function analyzeTapping(taps: TapRecord[], totalDurationMs: number = 1500
   // Performance Decrement = ((first - last) / first) * 100%
   let performanceDecrement = 0;
   if (first5sRate > 0) {
-    performanceDecrement = Number((((first5sRate - last5sRate) / first5sRate) * 100).toFixed(1));
+    performanceDecrement = Number(Math.max(0, ((first5sRate - last5sRate) / first5sRate) * 100).toFixed(1));
   }
 
   return {

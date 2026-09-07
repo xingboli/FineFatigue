@@ -136,7 +136,9 @@ export const ArchimedeanSpiralCanvas: React.FC<ArchimedeanSpiralCanvasProps> = (
       pressure: e.pressure || 0.5
     };
 
-    pointsRef.current.push(newPoint);
+    // A tracing trial is one continuous stroke. Starting again replaces the
+    // prior stroke rather than mixing multiple attempts into one metric.
+    pointsRef.current = [newPoint];
     setPointCount(pointsRef.current.length);
     redraw();
   };
@@ -160,6 +162,7 @@ export const ArchimedeanSpiralCanvas: React.FC<ArchimedeanSpiralCanvasProps> = (
     pointsRef.current.push(newPoint);
     setPointCount(pointsRef.current.length);
     redraw();
+    onPointsUpdate?.(pointsRef.current, templatePointsRef.current);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {

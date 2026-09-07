@@ -14,6 +14,7 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onCo
   const [tapCount, setTapCount] = useState<number>(0);
   const [currentRate, setCurrentRate] = useState<number>(0);
   const [lastTapSide, setLastTapSide] = useState<'left' | 'right' | null>(null);
+  const [measuredDurationSec, setMeasuredDurationSec] = useState(0);
 
   const startTimeRef = useRef<number>(0);
   const recentTapsRef = useRef<number[]>([]);
@@ -29,6 +30,7 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onCo
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
+          setMeasuredDurationSec((Date.now() - startTimeRef.current) / 1000);
           setStage('finished');
           return 0;
         }
@@ -52,6 +54,7 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onCo
     setCurrentRate(0);
     recentTapsRef.current = [];
     startTimeRef.current = Date.now();
+    setMeasuredDurationSec(0);
     setStage('running');
   };
 
@@ -64,7 +67,7 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onCo
   };
 
   const handleProceedToPost = () => {
-    onComplete(mode, tapCount);
+    onComplete(measuredDurationSec || (Date.now() - startTimeRef.current) / 1000, tapCount);
   };
 
   const averageRate = (mode - timeLeft) > 0 ? Number((tapCount / (mode - timeLeft)).toFixed(1)) : 0;
@@ -254,8 +257,8 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onCo
             </h3>
             <p className="text-xs text-slate-500 mt-1">
               {locale === 'zh'
-                ? `在 ${mode} 秒内共记录 ${tapCount} 次高频敲击。现在进入真实的负荷后复测。`
-                : `${tapCount} rapid taps were recorded over ${mode} seconds. Continue to the physical post-load assessment.`}
+                ? `在实测 ${measuredDurationSec.toFixed(1)} 秒内共记录 ${tapCount} 次高频敲击。现在进入真实的负荷后复测。`
+                : `${tapCount} rapid taps were recorded over a measured ${measuredDurationSec.toFixed(1)} seconds. Continue to the physical post-load assessment.`}
             </p>
           </div>
 

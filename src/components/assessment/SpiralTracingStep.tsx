@@ -20,11 +20,15 @@ export const SpiralTracingStep: React.FC<SpiralTracingStepProps> = ({
   const [userPoints, setUserPoints] = useState<Point2D[]>([]);
   const [templatePoints, setTemplatePoints] = useState<{ x: number; y: number }[]>([]);
   const [calculatedMetrics, setCalculatedMetrics] = useState<TracingMetrics | null>(null);
+  const [coverage, setCoverage] = useState(0);
 
   const handlePointsUpdate = (pts: Point2D[], tPts: { x: number; y: number }[]) => {
     setUserPoints(pts);
     setTemplatePoints(tPts);
-    if (pts.length > 15) {
+    const indices = pts.map(point => tPts.reduce((best, templatePoint, index) => Math.hypot(point.x - templatePoint.x, point.y - templatePoint.y) < best.distance ? { index, distance: Math.hypot(point.x - templatePoint.x, point.y - templatePoint.y) } : best, { index: 0, distance: Infinity })).map(item => item.index);
+    const nextCoverage = indices.length ? (Math.max(...indices) - Math.min(...indices)) / Math.max(1, tPts.length - 1) : 0;
+    setCoverage(nextCoverage);
+    if (pts.length > 15 && nextCoverage >= 0.9 && Math.min(...indices) <= tPts.length * 0.1) {
       const metrics = analyzeTracing(pts, tPts, isPostFatigue);
       setCalculatedMetrics(metrics);
     } else {
@@ -39,6 +43,7 @@ export const SpiralTracingStep: React.FC<SpiralTracingStepProps> = ({
   const handleRetry = () => {
     setUserPoints([]);
     setCalculatedMetrics(null);
+    setCoverage(0);
   };
 
   return (
@@ -197,6 +202,7 @@ export const SpiralTracingStep: React.FC<SpiralTracingStepProps> = ({
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
+              {!calculatedMetrics && userPoints.length > 15 && <p className="mt-2 text-center text-xs text-amber-700">{locale === 'zh' ? `当前覆盖 ${(coverage * 100).toFixed(0)}%，请从中心连续描摹至外圈并达到至少 90% 覆盖。` : `Current coverage ${(coverage * 100).toFixed(0)}%. Trace continuously from the center to the outer ring and reach at least 90%.`}</p>}
             </div>
           </div>
         </div>

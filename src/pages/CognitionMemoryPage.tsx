@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Brain, Clock3, PlayCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Brain, Clock3, PlayCircle, ShieldAlert, Sparkles } from 'lucide-react';
 import { CognitionMemoryResult } from '../types';
 import { MemoryGame } from '../components/cognition/MemoryGame';
 import { CognitionResult } from '../components/cognition/CognitionResult';
 import { useI18n } from '../i18n/context';
+import { CognitionStorageError } from '../services/cognitionStorage';
 
 interface CognitionMemoryPageProps {
   results: CognitionMemoryResult[];
   initialResult?: CognitionMemoryResult | null;
-  onSaveResult: (result: CognitionMemoryResult) => void;
+  onSaveResult: (result: CognitionMemoryResult) => Promise<void>;
   onBack: () => void;
 }
 
@@ -19,13 +20,26 @@ export const CognitionMemoryPage: React.FC<CognitionMemoryPageProps> = ({ result
   const [phase, setPhase] = useState<Phase>(initialResult ? 'result' : 'intro');
   const [sessionKey, setSessionKey] = useState(0);
   const [activeResult, setActiveResult] = useState<CognitionMemoryResult | null>(initialResult);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const zh = locale === 'zh';
 
-  const start = () => { setActiveResult(null); setSessionKey(value => value + 1); setPhase('game'); };
-  const complete = (result: CognitionMemoryResult) => { onSaveResult(result); setActiveResult(result); setPhase('result'); };
+  const start = () => { setSaveError(null); setActiveResult(null); setSessionKey(value => value + 1); setPhase('game'); };
+  const complete = async (result: CognitionMemoryResult) => {
+    try {
+      await onSaveResult(result);
+      setSaveError(null);
+    } catch (error) {
+      const isQuotaError = error instanceof CognitionStorageError && error.code === 'quota';
+      setSaveError(zh
+        ? (isQuotaError ? '浏览器本地存储空间不足，无法保存本次认知测试的原始数据。' : '浏览器无法保存本次认知测试数据。')
+        : (isQuotaError ? 'Browser storage is full, so this cognitive test raw data could not be saved.' : 'This cognitive test data could not be saved in the browser.'));
+    }
+    setActiveResult(result);
+    setPhase('result');
+  };
 
   if (phase === 'game') return <div className="space-y-4"><button type="button" onClick={() => setPhase('intro')} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"><ArrowLeft className="w-3.5 h-3.5" />{zh ? '退出本次测试' : 'Exit this test'}</button><MemoryGame sessionKey={sessionKey} locale={locale} onComplete={complete} /></div>;
-  if (phase === 'result' && activeResult) return <CognitionResult result={activeResult} locale={locale} onRetry={start} onBack={() => setPhase('intro')} />;
+  if (phase === 'result' && activeResult) return <div className="space-y-4">{saveError && <div className="max-w-3xl mx-auto rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 flex gap-2"><ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" /><div><div className="font-semibold">{zh ? '本地保存失败' : 'Local save failed'}</div><p className="mt-1 text-xs leading-relaxed">{saveError} {zh ? '请立即下载本次原始 JSON，随后在浏览器中清理旧记录或释放站点存储空间后重试。' : 'Download this result JSON now, then clear older records or free site storage before trying again.'}</p></div></div>}<CognitionResult result={activeResult} locale={locale} onRetry={start} onBack={() => setPhase('intro')} /></div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

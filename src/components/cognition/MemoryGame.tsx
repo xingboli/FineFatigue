@@ -32,13 +32,14 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ sessionKey, locale, onCo
   const [matchedIds, setMatchedIds] = useState<Set<string>>(() => new Set());
   const [attemptCount, setAttemptCount] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const firstSelectionRef = useRef<{ card: MemoryCardData; timestamp: number; attemptIndex: number } | null>(null);
+  const firstSelectionRef = useRef<{ card: MemoryCardData; timestamp: number; elapsedMs: number; attemptIndex: number } | null>(null);
   const attemptsRef = useRef<MemoryAttempt[]>([]);
   const interactionsRef = useRef<MemoryInteractionEvent[]>([]);
   const matchedIdsRef = useRef(new Set<string>());
   const lockedRef = useRef(false);
   const completedRef = useRef(false);
   const startedAtRef = useRef(Date.now());
+  const startedPerformanceRef = useRef(performance.now());
   const timeoutIdsRef = useRef<number[]>([]);
 
   const addTimeout = (callback: () => void, delay: number) => {
@@ -58,6 +59,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ sessionKey, locale, onCo
     lockedRef.current = false;
     completedRef.current = false;
     startedAtRef.current = Date.now();
+    startedPerformanceRef.current = performance.now();
     setAttemptCount(0);
     setElapsedSeconds(0);
     return () => timeoutIdsRef.current.forEach(window.clearTimeout);
@@ -72,17 +74,19 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ sessionKey, locale, onCo
     if (completedRef.current) return;
     completedRef.current = true;
     const completedAt = Date.now();
-    onComplete(calculateCognitionMemoryResult(startedAtRef.current, completedAt, PAIRS.length, attemptsRef.current, interactionsRef.current));
+    const totalDuration = Math.round(performance.now() - startedPerformanceRef.current);
+    void onComplete(calculateCognitionMemoryResult(startedAtRef.current, completedAt, totalDuration, PAIRS.length, attemptsRef.current, interactionsRef.current));
   }, [onComplete]);
 
   const selectCard = (card: MemoryCardData) => {
     if (completedRef.current || lockedRef.current || matchedIdsRef.current.has(card.id) || faceUpIds.has(card.id)) return;
     const timestamp = Date.now();
+    const elapsedMs = Math.max(0, Math.round(performance.now() - startedPerformanceRef.current));
     const firstSelection = firstSelectionRef.current;
     if (!firstSelection) {
       const attemptIndex = attemptsRef.current.length + 1;
-      firstSelectionRef.current = { card, timestamp, attemptIndex };
-      interactionsRef.current.push({ timestamp, cardId: card.id, pairId: card.pairId, attemptIndex, position: card.position, isFirstSelection: true, matched: null });
+      firstSelectionRef.current = { card, timestamp, elapsedMs, attemptIndex };
+      interactionsRef.current.push({ timestamp, elapsedMs, interactionIndex: interactionsRef.current.length + 1, cardId: card.id, pairId: card.pairId, attemptIndex, position: card.position, isFirstSelection: true, matched: null });
       setFaceUpIds(new Set([card.id]));
       return;
     }
@@ -98,13 +102,15 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ sessionKey, locale, onCo
       secondPairId: card.pairId,
       startedAt: firstSelection.timestamp,
       completedAt: timestamp,
-      responseTimeMs: Math.max(0, timestamp - firstSelection.timestamp),
+      startedElapsedMs: firstSelection.elapsedMs,
+      completedElapsedMs: elapsedMs,
+      responseTimeMs: Math.max(0, elapsedMs - firstSelection.elapsedMs),
       matched
     };
     attemptsRef.current.push(attempt);
     const firstEvent = interactionsRef.current.findLast(event => event.attemptIndex === attempt.attemptIndex && event.isFirstSelection);
     if (firstEvent) firstEvent.matched = matched;
-    interactionsRef.current.push({ timestamp, cardId: card.id, pairId: card.pairId, attemptIndex: attempt.attemptIndex, position: card.position, isFirstSelection: false, matched });
+    interactionsRef.current.push({ timestamp, elapsedMs, interactionIndex: interactionsRef.current.length + 1, cardId: card.id, pairId: card.pairId, attemptIndex: attempt.attemptIndex, position: card.position, isFirstSelection: false, matched });
     setAttemptCount(attemptsRef.current.length);
     setFaceUpIds(new Set([firstSelection.card.id, card.id]));
 

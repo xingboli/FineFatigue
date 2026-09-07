@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, RotateCcw, ArrowRight, Activity, CheckCircle, ShieldAlert } from 'lucide-react';
-import { IMUDataPoint, SensorStatus, StabilityMetrics } from '../../types';
+import { IMUCalibration, IMUDataPoint, SensorStatus, StabilityMetrics } from '../../types';
 import { WaveformCanvas } from '../charts/WaveformCanvas';
 import { FrequencySpectrumChart } from '../charts/FrequencySpectrumChart';
 import { analyzeHandStability } from '../../utils/signalProcessing';
@@ -9,6 +9,8 @@ import { useI18n } from '../../i18n/context';
 interface HandStabilityStepProps {
   currentData: IMUDataPoint | null;
   sensorStatus: SensorStatus;
+  calibration: IMUCalibration;
+  subscribeToImu: (listener: (point: IMUDataPoint) => void) => () => void;
   onRequestImuAccess: () => Promise<boolean>;
   isPostFatigue?: boolean;
   onComplete: (metrics: StabilityMetrics) => void;
@@ -18,6 +20,8 @@ interface HandStabilityStepProps {
 export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
   currentData,
   sensorStatus,
+  calibration,
+  subscribeToImu,
   onRequestImuAccess,
   isPostFatigue = false,
   onComplete,
@@ -50,30 +54,31 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
     }
   }, [stage, countdown]);
 
-  // 15s recording timer
+  // Subscribe directly to the hardware stream while recording. React state is
+  // used only for rendering the live display, never as the measurement source.
   useEffect(() => {
     if (stage !== 'recording') return;
-    if (timeLeft > 0) {
-      const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(t);
-    } else {
+    const startedAt = performance.now();
+    const unsubscribe = subscribeToImu(point => recordedDataRef.current.push(point));
+    const ticker = window.setInterval(() => {
+      const remaining = Math.max(0, 15000 - (performance.now() - startedAt));
+      setTimeLeft(Math.ceil(remaining / 1000));
+    }, 100);
+    const timer = window.setTimeout(() => {
+      unsubscribe();
+      window.clearInterval(ticker);
+      setTimeLeft(0);
       if (recordedDataRef.current.length < 30) {
         setCollectionError(true);
         setStage('idle');
         return;
       }
-      const metrics = analyzeHandStability(recordedDataRef.current, isPostFatigue);
+      const metrics = analyzeHandStability(recordedDataRef.current, { calibration });
       setCalculatedMetrics(metrics);
       setStage('finished');
-    }
-  }, [stage, timeLeft, isPostFatigue]);
-
-  // Collect data points during recording
-  useEffect(() => {
-    if (stage === 'recording' && currentData) {
-      recordedDataRef.current.push(currentData);
-    }
-  }, [stage, currentData]);
+    }, 15000);
+    return () => { unsubscribe(); window.clearInterval(ticker); window.clearTimeout(timer); };
+  }, [stage, calibration, subscribeToImu]);
 
   const handleStart = () => {
     if (!isImuAvailable) return;
@@ -176,7 +181,7 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
                 <div className="text-xs text-slate-500">
                   {stage === 'idle' && (locale === 'zh' ? '手臂放松，自然握持传感器或平放手背。' : 'Rest your forearm and hold the sensor naturally.')}
                   {stage === 'pre-countdown' && (locale === 'zh' ? '手指微屈放松，避免肌肉突然抽动。' : 'Keep fingers relaxed and avoid sudden twitches.')}
-                  {stage === 'recording' && (locale === 'zh' ? '以 50 Hz 高频连续记录三轴加速度与角速度信号。' : 'Continuous 50 Hz inertial motion stream logging.')}
+                  {stage === 'recording' && (locale === 'zh' ? '正在连续记录真实三轴加速度与角速度；完成后按实际时间戳计算采样率。' : 'Recording a real three-axis inertial stream; the sampling rate is calculated from actual timestamps after capture.')}
                 </div>
               </div>
             </div>

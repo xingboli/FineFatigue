@@ -23,6 +23,7 @@ function halfMetrics(attempts: MemoryAttempt[]) {
 export function calculateCognitionMemoryResult(
   startedAt: number,
   completedAt: number,
+  totalDuration: number,
   totalPairs: number,
   attempts: MemoryAttempt[],
   interactions: MemoryInteractionEvent[]
@@ -41,14 +42,19 @@ export function calculateCognitionMemoryResult(
   const accuracy = totalAttempts ? correctAttempts / totalAttempts : 0;
   const meanResponseTime = average(responseTimes);
   const memoryScore = Math.round(accuracy * 100);
-  const responseSpeedScore = Math.round(clamp(100 - meanResponseTime / 30));
+  const responseSpeedScoreRaw = 100 - meanResponseTime / 30;
+  const responseSpeedScore = Math.round(clamp(responseSpeedScoreRaw));
   const stabilityPenalty = Math.max(0, reactionTimeChange) * 50 + Math.max(0, errorRateChange) * 100;
+  const cognitiveStabilityScoreRaw = 100 - stabilityPenalty;
 
   return {
     id: `COG-${completedAt.toString(36).toUpperCase()}`,
+    schemaVersion: 2,
+    taskVersion: 'spatial-memory-matching-4x4-v1',
     timestamp: new Date(completedAt).toISOString(),
+    startedAt,
     completedAt,
-    totalDuration: Math.max(0, completedAt - startedAt),
+    totalDuration: Math.max(0, totalDuration),
     totalPairs,
     totalAttempts,
     correctAttempts,
@@ -69,8 +75,10 @@ export function calculateCognitionMemoryResult(
     reactionTimeChange,
     errorRateChange,
     memoryScore,
+    responseSpeedScoreRaw,
     responseSpeedScore,
-    cognitiveStabilityScore: Math.round(clamp(100 - stabilityPenalty)),
+    cognitiveStabilityScoreRaw,
+    cognitiveStabilityScore: Math.round(clamp(cognitiveStabilityScoreRaw)),
     interactions,
     attempts
   };

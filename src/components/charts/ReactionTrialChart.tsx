@@ -22,8 +22,10 @@ export const ReactionTrialChart: React.FC<ReactionTrialChartProps> = ({
     );
   }
 
-  const maxVal = Math.max(450, ...trials.map(t => t.reactionTimeMs));
-  const minVal = Math.min(...trials.map(t => t.reactionTimeMs));
+  const validTrials = trials.filter(trial => !trial.isEarly);
+  if (validTrials.length === 0) return null;
+  const maxVal = Math.max(450, ...validTrials.map(t => t.reactionTimeMs));
+  const minVal = Math.min(...validTrials.map(t => t.reactionTimeMs));
 
   return (
     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
@@ -54,13 +56,13 @@ export const ReactionTrialChart: React.FC<ReactionTrialChartProps> = ({
           </span>
         </div>
 
-        {trials.map(t => {
+        {validTrials.map(t => {
           const heightPct = Math.min(100, Math.max(12, (t.reactionTimeMs / maxVal) * 100));
           const isBest = t.reactionTimeMs === minVal;
           const isSlow = t.reactionTimeMs > medianReactionMs + 40;
 
           return (
-            <div key={t.trialNumber} className="flex-1 flex flex-col items-center h-full justify-end group relative">
+            <div key={`${t.trialNumber}-${t.timestamp}`} className="flex-1 flex flex-col items-center h-full justify-end group relative">
               <span className="text-[10px] font-mono text-slate-500 mb-1">
                 {t.reactionTimeMs}ms
               </span>

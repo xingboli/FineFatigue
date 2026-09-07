@@ -32,6 +32,7 @@ function readStore() {
       account.sessions = Array.isArray(account.sessions) ? account.sessions.filter(session => !isLegacySampleRecord(session)) : [];
       account.subjective = Array.isArray(account.subjective) ? account.subjective : [];
       account.cognition = Array.isArray(account.cognition) ? account.cognition : [];
+      account.games = Array.isArray(account.games) ? account.games : [];
       account.settings = account.settings && typeof account.settings === 'object' ? account.settings : {};
       account.compensation = account.compensation && typeof account.compensation === 'object' ? account.compensation : { amount: 0, note: '', status: 'pending' };
       account.status = ['active', 'pending', 'disabled'].includes(account.status) ? account.status : 'active';
@@ -74,7 +75,7 @@ function createParticipantAccount(identifier, password) {
   const account = {
     user: { id: accountId, name: participantCode, email: `${loginKey}@lab.local`, role: 'participant', participantCode, avatar: '🧑‍🔬', lastLogin: Date.now(), loginKey },
     password: hashPassword(password),
-    sessions: [], subjective: [], cognition: [], settings: {},
+    sessions: [], subjective: [], cognition: [], games: [], settings: {},
     compensation: { amount: 0, note: '', status: 'pending' }, status: 'pending', createdAt: Date.now(), updatedAt: Date.now()
   };
   store.accounts[accountId] = account;
@@ -116,7 +117,17 @@ function mergeById(existing = [], incoming = []) {
   for (const item of [...existing, ...incoming]) {
     if (isLegacySampleRecord(item) || !item?.id) continue;
     const current = merged.get(item.id);
-    if (!current || recordTimestamp(item) >= recordTimestamp(current)) merged.set(item.id, { ...item });
+    if (!current || JSON.stringify(current) === JSON.stringify(item)) {
+      merged.set(item.id, { ...item });
+      continue;
+    }
+    const itemIsNewer = recordTimestamp(item) >= recordTimestamp(current);
+    const winner = itemIsNewer ? item : current;
+    const loser = itemIsNewer ? current : item;
+    merged.set(item.id, { ...winner });
+    const suffix = crypto.createHash('sha256').update(JSON.stringify(loser)).digest('hex').slice(0, 10);
+    const conflictId = `${loser.id}-CONFLICT-${suffix}`;
+    if (!merged.has(conflictId)) merged.set(conflictId, { ...loser, id: conflictId, conflictOf: loser.id });
   }
   return [...merged.values()].sort((a, b) => recordTimestamp(b) - recordTimestamp(a));
 }
@@ -127,7 +138,7 @@ function recordTimestamp(item) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 function accountPayload(account) {
-  return { user: publicUser(account.user), sessions: account.sessions, subjective: account.subjective, cognition: account.cognition, settings: account.settings, syncedAt: account.updatedAt };
+  return { user: publicUser(account.user), sessions: account.sessions, subjective: account.subjective, cognition: account.cognition, games: account.games, settings: account.settings, syncedAt: account.updatedAt };
 }
 function adminProfile() {
   return { id: 'ADMIN', name: process.env.ADMIN_USERNAME || 'Administrator', email: 'admin@lab.local', role: 'researcher', participantCode: 'ADMIN', avatar: '🧑‍💼', lastLogin: Date.now() };
@@ -187,11 +198,12 @@ app.post('/api/auth/logout', (req, res) => {
   res.status(204).end();
 });
 app.post('/api/sync', requireParticipant, (req, res) => {
-  const { sessions, subjective, cognition, settings } = req.body || {};
+  const { sessions, subjective, cognition, games, settings } = req.body || {};
   const account = req.account;
   account.sessions = mergeById(account.sessions, Array.isArray(sessions) ? sessions : []);
   account.subjective = mergeById(account.subjective, Array.isArray(subjective) ? subjective : []);
   account.cognition = mergeById(account.cognition, Array.isArray(cognition) ? cognition : []);
+  account.games = mergeById(account.games, Array.isArray(games) ? games : []);
   account.settings = { ...account.settings, ...(settings && typeof settings === 'object' ? settings : {}) };
   account.updatedAt = Date.now();
   writeStore();
@@ -201,7 +213,7 @@ app.get('/api/admin/accounts', requireAdmin, (_req, res) => {
   const accounts = Object.values(store.accounts).map(account => ({
     id: account.user.id, name: account.user.name, participantCode: account.user.participantCode, createdAt: account.createdAt,
     lastLogin: account.user.lastLogin, status: account.status, experimentCount: account.sessions.length,
-    subjectiveCount: account.subjective.length, cognitionCount: account.cognition.length, compensation: account.compensation
+    subjectiveCount: account.subjective.length, cognitionCount: account.cognition.length, gameCount: account.games.length, compensation: account.compensation
   })).sort((a, b) => Number(b.lastLogin || 0) - Number(a.lastLogin || 0));
   res.json({ accounts });
 });
@@ -232,14 +244,27 @@ app.get('/api/admin/export/sessions.csv', requireAdmin, (_req, res) => {
   })));
   csvResponse(res, 'finefatigue-sessions.csv', ['participant_code', 'session_id', 'timestamp', 'fatigue_index', 'fatigue_level', 'challenge_duration_sec', 'challenge_taps', 'baseline_stability_score', 'post_stability_score', 'baseline_motion_rms_g', 'post_motion_rms_g', 'baseline_tap_rate_hz', 'post_tap_rate_hz', 'baseline_reaction_median_ms', 'post_reaction_median_ms', 'baseline_tracing_rmse_px', 'post_tracing_rmse_px', 'subjective_rating', 'subjective_level', 'subjective_sensations', 'subjective_note'], rows);
 });
+app.get('/api/admin/export/raw.csv', requireAdmin, (_req, res) => {
+  const rows = Object.values(store.accounts).flatMap(account => account.sessions.flatMap(session => {
+    const exportPhase = (phase, battery) => [
+      ...(battery?.stability?.waveforms || []).map((point, index) => ({ participant_code: account.user.participantCode, session_id: session.id, phase, record_type: 'imu', record_index: index + 1, timestamp: point.timestamp, ax: point.ax, ay: point.ay, az: point.az, gx: point.gx, gy: point.gy, gz: point.gz })),
+      ...(battery?.tapping?.taps || []).map((tap, index) => ({ participant_code: account.user.participantCode, session_id: session.id, phase, record_type: 'tap', record_index: index + 1, timestamp: tap.timestamp, target: tap.target, interval_ms: tap.interval, time_from_start_ms: tap.timeFromStart })),
+      ...(battery?.reaction?.trials || []).map((trial, index) => ({ participant_code: account.user.participantCode, session_id: session.id, phase, record_type: 'reaction', record_index: index + 1, timestamp: trial.timestamp, trial_number: trial.trialNumber, reaction_time_ms: trial.reactionTimeMs, is_early: trial.isEarly })),
+      ...(battery?.tracing?.userPoints || []).map((point, index) => ({ participant_code: account.user.participantCode, session_id: session.id, phase, record_type: 'trace', record_index: index + 1, timestamp: point.timestamp, x: point.x, y: point.y, pressure: point.pressure })),
+      ...(battery?.stability?.spectrum || []).map((bin, index) => ({ participant_code: account.user.participantCode, session_id: session.id, phase, record_type: 'spectrum', record_index: index + 1, frequency_hz: bin.freq, power: bin.power }))
+    ];
+    return [...exportPhase('baseline', session.baseline), ...exportPhase('post_fatigue', session.postFatigue)];
+  }));
+  csvResponse(res, 'finefatigue-raw.csv', ['participant_code', 'session_id', 'phase', 'record_type', 'record_index', 'timestamp', 'ax', 'ay', 'az', 'gx', 'gy', 'gz', 'target', 'interval_ms', 'time_from_start_ms', 'trial_number', 'reaction_time_ms', 'is_early', 'x', 'y', 'pressure', 'frequency_hz', 'power'], rows);
+});
 app.get('/api/admin/export/users.csv', requireAdmin, (_req, res) => {
   const rows = Object.values(store.accounts).map(account => ({
     participant_code: account.user.participantCode, status: account.status, experiment_count: account.sessions.length,
-    subjective_count: account.subjective.length, cognition_test_count: account.cognition.length, compensation_amount: account.compensation.amount,
+    subjective_count: account.subjective.length, cognition_test_count: account.cognition.length, tracking_test_count: account.games.length, compensation_amount: account.compensation.amount,
     compensation_status: account.compensation.status, compensation_note: account.compensation.note,
     created_at: account.createdAt, last_login: account.user.lastLogin
   }));
-  csvResponse(res, 'finefatigue-users.csv', ['participant_code', 'status', 'experiment_count', 'subjective_count', 'cognition_test_count', 'compensation_amount', 'compensation_status', 'compensation_note', 'created_at', 'last_login'], rows);
+  csvResponse(res, 'finefatigue-users.csv', ['participant_code', 'status', 'experiment_count', 'subjective_count', 'cognition_test_count', 'tracking_test_count', 'compensation_amount', 'compensation_status', 'compensation_note', 'created_at', 'last_login'], rows);
 });
 app.get('/api/admin/export/cognition.csv', requireAdmin, (_req, res) => {
   const rows = Object.values(store.accounts).flatMap(account => account.cognition.map(result => ({
@@ -250,9 +275,59 @@ app.get('/api/admin/export/cognition.csv', requireAdmin, (_req, res) => {
     moves_per_pair: result.movesPerPair, first_half_accuracy: result.firstHalfAccuracy, second_half_accuracy: result.secondHalfAccuracy,
     first_half_mean_rt_ms: result.firstHalfMeanRT, second_half_mean_rt_ms: result.secondHalfMeanRT,
     reaction_time_change: result.reactionTimeChange, error_rate_change: result.errorRateChange,
-    memory_score: result.memoryScore, response_speed_score: result.responseSpeedScore, cognitive_stability_score: result.cognitiveStabilityScore
+    memory_score: result.memoryScore, response_speed_score_raw: result.responseSpeedScoreRaw, response_speed_score: result.responseSpeedScore,
+    cognitive_stability_score_raw: result.cognitiveStabilityScoreRaw, cognitive_stability_score: result.cognitiveStabilityScore
   })));
-  csvResponse(res, 'finefatigue-cognition.csv', ['participant_code', 'cognition_session_id', 'timestamp', 'total_duration_ms', 'total_pairs', 'total_attempts', 'correct_attempts', 'incorrect_attempts', 'accuracy', 'mean_response_time_ms', 'median_response_time_ms', 'moves_per_pair', 'first_half_accuracy', 'second_half_accuracy', 'first_half_mean_rt_ms', 'second_half_mean_rt_ms', 'reaction_time_change', 'error_rate_change', 'memory_score', 'response_speed_score', 'cognitive_stability_score'], rows);
+  csvResponse(res, 'finefatigue-cognition.csv', ['participant_code', 'cognition_session_id', 'timestamp', 'total_duration_ms', 'total_pairs', 'total_attempts', 'correct_attempts', 'incorrect_attempts', 'accuracy', 'mean_response_time_ms', 'median_response_time_ms', 'moves_per_pair', 'first_half_accuracy', 'second_half_accuracy', 'first_half_mean_rt_ms', 'second_half_mean_rt_ms', 'reaction_time_change', 'error_rate_change', 'memory_score', 'response_speed_score_raw', 'response_speed_score', 'cognitive_stability_score_raw', 'cognitive_stability_score'], rows);
+});
+app.get('/api/admin/export/cognition-raw.csv', requireAdmin, (_req, res) => {
+  const rows = Object.values(store.accounts).flatMap(account => (account.cognition || []).flatMap(result => {
+    const base = {
+      participant_code: account.user.participantCode,
+      cognition_session_id: result.id,
+      schema_version: result.schemaVersion || 1,
+      task_version: result.taskVersion || 'spatial-memory-matching-4x4-v1'
+    };
+    const interactionRows = (Array.isArray(result.interactions) ? result.interactions : []).map((event, eventIndex) => ({
+      ...base,
+      record_type: 'selection',
+      record_index: event.interactionIndex || eventIndex + 1,
+      attempt_index: event.attemptIndex,
+      timestamp: event.timestamp,
+      elapsed_ms: event.elapsedMs,
+      card_id: event.cardId,
+      pair_id: event.pairId,
+      position: event.position,
+      is_first_selection: event.isFirstSelection,
+      matched: event.matched,
+      first_card_id: '', second_card_id: '', first_pair_id: '', second_pair_id: '',
+      attempt_started_at: '', attempt_completed_at: '', attempt_started_elapsed_ms: '', attempt_completed_elapsed_ms: '', response_time_ms: ''
+    }));
+    const attemptRows = (Array.isArray(result.attempts) ? result.attempts : []).map((attempt, attemptIndex) => ({
+      ...base,
+      record_type: 'attempt',
+      record_index: attemptIndex + 1,
+      attempt_index: attempt.attemptIndex,
+      timestamp: attempt.completedAt,
+      elapsed_ms: attempt.completedElapsedMs,
+      card_id: '', pair_id: '', position: '', is_first_selection: '', matched: attempt.matched,
+      first_card_id: attempt.firstCardId,
+      second_card_id: attempt.secondCardId,
+      first_pair_id: attempt.firstPairId,
+      second_pair_id: attempt.secondPairId,
+      attempt_started_at: attempt.startedAt,
+      attempt_completed_at: attempt.completedAt,
+      attempt_started_elapsed_ms: attempt.startedElapsedMs,
+      attempt_completed_elapsed_ms: attempt.completedElapsedMs,
+      response_time_ms: attempt.responseTimeMs
+    }));
+    return [...interactionRows, ...attemptRows];
+  }));
+  csvResponse(res, 'finefatigue-cognition-raw.csv', ['participant_code', 'cognition_session_id', 'schema_version', 'task_version', 'record_type', 'record_index', 'attempt_index', 'timestamp', 'elapsed_ms', 'card_id', 'pair_id', 'position', 'is_first_selection', 'matched', 'first_card_id', 'second_card_id', 'first_pair_id', 'second_pair_id', 'attempt_started_at', 'attempt_completed_at', 'attempt_started_elapsed_ms', 'attempt_completed_elapsed_ms', 'response_time_ms'], rows);
+});
+app.get('/api/admin/export/games.csv', requireAdmin, (_req, res) => {
+  const rows = Object.values(store.accounts).flatMap(account => (account.games || []).flatMap(game => (game.path || []).map((point, index) => ({ participant_code: account.user.participantCode, game_id: game.id, timestamp: point.timestamp, point_index: index + 1, x: point.x, y: point.y, target_x: point.targetX, target_y: point.targetY, in_no_go: point.inNoGo, tracking_rmse_px: game.trackingRMSEPx, on_target_percent: game.onTargetPercent, phase_lag_ms: game.phaseLagMs, no_go_entries: game.noGoEntries, no_go_dwell_ms: game.noGoDwellMs }))));
+  csvResponse(res, 'finefatigue-games.csv', ['participant_code', 'game_id', 'timestamp', 'point_index', 'x', 'y', 'target_x', 'target_y', 'in_no_go', 'tracking_rmse_px', 'on_target_percent', 'phase_lag_ms', 'no_go_entries', 'no_go_dwell_ms'], rows);
 });
 app.post('/api/ai/motivation', async (req, res) => {
   const apiKey = process.env.MIMO_API_KEY;

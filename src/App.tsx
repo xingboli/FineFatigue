@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopBar } from './components/layout/TopBar';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
@@ -25,7 +25,8 @@ import {
   UserProfile, 
   CloudSyncState, 
   SubjectiveFatigueRecord,
-  CognitionMemoryResult
+  CognitionMemoryResult,
+  StarCatcherResult
 } from './types';
 
 const sensorService = new RealHardwareSensorAdapter();
@@ -130,6 +131,8 @@ export default function App() {
     }
   };
 
+  const subscribeToImu = useCallback((listener: (point: IMUDataPoint) => void) => sensorService.subscribe(listener), []);
+
   const handleUpdateSubjectId = (newId: string) => {
     setSubjectId(newId);
     localStorage.setItem('finefatigue_subject_id', newId);
@@ -182,6 +185,7 @@ export default function App() {
     setActiveReport(report);
     setCurrentTab('report');
   };
+  const handleGameEnd = async (result: StarCatcherResult) => { StorageService.addGameResult(result); cloudSyncService.markPending(); await cloudSyncService.syncNow(); };
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
@@ -231,6 +235,7 @@ export default function App() {
               sensorStatus={sensorStatus}
               currentData={currentIMU}
               onRequestImuAccess={handleRequestImuAccess}
+              subscribeToImu={subscribeToImu}
               onComplete={handleAssessmentComplete}
               onCancel={() => setCurrentTab('overview')}
             />
@@ -269,13 +274,13 @@ export default function App() {
             <CognitionMemoryPage
               results={cognitionResults}
               initialResult={activeCognitionResult}
-              onSaveResult={result => { void handleCognitionComplete(result); }}
+              onSaveResult={handleCognitionComplete}
               onBack={() => setCurrentTab('overview')}
             />
           )}
 
           {currentTab === 'star_catcher' && (
-            <StarCatcherGame />
+            <StarCatcherGame onGameEnd={handleGameEnd} />
           )}
 
           {currentTab === 'settings' && (

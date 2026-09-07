@@ -4,6 +4,8 @@ import { ReactionMetrics, ReactionTrial } from '../../types';
 import { ReactionTrialChart } from '../charts/ReactionTrialChart';
 import { useI18n } from '../../i18n/context';
 
+const TOTAL_TRIALS = 30;
+
 interface ReactionStepProps {
   isPostFatigue?: boolean;
   onComplete: (metrics: ReactionMetrics) => void;
@@ -16,7 +18,6 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
   onBack
 }) => {
   const { locale } = useI18n();
-  const TOTAL_TRIALS = 8;
   const [stage, setStage] = useState<'idle' | 'waiting' | 'ready_to_tap' | 'trial_result' | 'early_fault' | 'finished'>('idle');
   const [currentTrialNum, setCurrentTrialNum] = useState<number>(1);
   const [trials, setTrials] = useState<ReactionTrial[]>([]);
@@ -36,8 +37,8 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
     setStage('waiting');
     setLastReactionMs(null);
 
-    // Randomized delay between 1200ms and 3000ms
-    const randomDelay = Math.floor(1200 + Math.random() * 1800);
+    // PVT-style randomized inter-stimulus interval: 2–10 seconds.
+    const randomDelay = Math.floor(2000 + Math.random() * 8000);
 
     waitTimerRef.current = window.setTimeout(() => {
       signalTimeRef.current = Date.now();
@@ -49,6 +50,7 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
     if (stage === 'waiting') {
       // User tapped too early!
       if (waitTimerRef.current) clearTimeout(waitTimerRef.current);
+      setTrials(previous => [...previous, { trialNumber: currentTrialNum, timestamp: Date.now(), reactionTimeMs: 0, isEarly: true }]);
       setStage('early_fault');
       return;
     }
@@ -60,6 +62,7 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
 
       const newTrial: ReactionTrial = {
         trialNumber: currentTrialNum,
+        timestamp: now,
         reactionTimeMs,
         isEarly: false
       };
@@ -98,8 +101,9 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
 
   // Calculate summary metrics
   const computeMetrics = (): ReactionMetrics | null => {
-    if (trials.length !== TOTAL_TRIALS) return null;
-    const times = trials.map(t => t.reactionTimeMs).sort((a, b) => a - b);
+    const validTrials = trials.filter(trial => !trial.isEarly);
+    if (validTrials.length !== TOTAL_TRIALS) return null;
+    const times = validTrials.map(t => t.reactionTimeMs).sort((a, b) => a - b);
     const sum = times.reduce((a, b) => a + b, 0);
     const mean = Math.round(sum / times.length);
     const median = times[Math.floor(times.length / 2)];
@@ -112,7 +116,9 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
       medianReactionMs: median,
       bestReactionMs: best,
       worstReactionMs: worst,
-      missRate: 0
+      missRate: Number(((trials.filter(trial => trial.isEarly).length / trials.length) * 100).toFixed(1)),
+      lapseCount: validTrials.filter(trial => trial.reactionTimeMs >= 500).length,
+      meanReciprocalReaction: Number((validTrials.reduce((sum, trial) => sum + 1 / trial.reactionTimeMs, 0) / validTrials.length).toFixed(6))
     };
   };
 
@@ -187,12 +193,12 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
               </div>
               <div className="max-w-md">
                 <h3 className="text-lg font-bold text-slate-900">
-                  {locale === 'zh' ? '共 8 轮高精度随机反应测试' : '8 High-Precision Reaction Trials'}
+                  {locale === 'zh' ? '共 30 轮随机反应测试' : '30 Randomized Reaction Trials'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
                   {locale === 'zh'
-                    ? '请等待绿色“立刻触碰！”信号出现。若在黄色“等待信号”状态下提前点击，系统将判定为抢跑并重置该轮。'
-                    : 'Wait for the green "TAP NOW" signal. If you tap while it is yellow/waiting, the trial will reset.'}
+                    ? '每轮等待 2–10 秒后绿色信号出现。若在黄色“等待信号”状态下提前点击，系统将标记为抢跑并重置该轮。'
+                    : 'The green signal appears after a randomized 2–10 second wait. Early taps are flagged and the trial is repeated.'}
                 </p>
               </div>
               <button
@@ -287,7 +293,7 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
                 </h3>
               </div>
               <span className="text-xs font-mono text-slate-400">
-                {locale === 'zh' ? '8 轮测试已完成' : '8 Trials Evaluated'}
+                {locale === 'zh' ? '30 轮有效反应测试已完成' : '30 valid reaction trials completed'}
               </span>
             </div>
 
