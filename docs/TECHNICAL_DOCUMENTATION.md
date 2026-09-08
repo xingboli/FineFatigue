@@ -1,6 +1,6 @@
 # FineFatigue 技术文档
 
-> 本文基于当前仓库代码整理，面向接手维护、实验运行与数据处理人员。它描述的是已经实现的行为，而不是产品路线图。最后核对代码实现基线：`bb0ec60`；后续提交仅为文档变更时，应以实际 Git history 为准。
+> 本文基于当前仓库代码整理，面向接手维护、实验运行与数据处理人员。它描述的是已经实现的行为，而不是产品路线图。最近一次功能代码核对基线为 `bb67d53`；后续提交仅为文档变更时，应以实际 Git history 为准。
 
 ## 1. 系统定位与边界
 
@@ -38,7 +38,8 @@ FineFatigue 采用一个代码库加 runtime feature gating，而不是维护两
 | DeviceMotion IMU | 支持设备并授权时有 | 支持设备并授权时有 |
 | LocalStorage | 有 | 有 |
 | Full research timings | 无，缩短用于 walkthrough | 有 |
-| 认证、LAN 同步、管理员、CSV | 无 | 有 |
+| 真实认证、LAN 同步、服务端 CSV | 无 | 有 |
+| 演示身份、示例历史与管理员摘要 | 一键切换、只读、运行时数据 | 不适用；使用真实账号与数据 |
 | MiMo | 无，使用本地规则 | 可选服务端能力 |
 
 Demo 不是模拟传感器模式。`App.tsx` 的当前入口实例化的是 `RealHardwareSensorAdapter`；仓库中保留的 `src/services/sensorSimulator.ts` 没有沿当前入口导入或调用，不得据此在文档或演示中宣称存在可用的模拟 IMU。
@@ -84,11 +85,12 @@ Express（server.mjs，0.0.0.0:PORT）
 | 路径 | 职责 |
 | --- | --- |
 | `src/App.tsx` | 顶层路由状态、硬件适配器单例、IMU 订阅、任务结束后的保存与同步触发。 |
-| `src/config/runtime.ts`、`.env.demo`、`vite.config.ts` | Demo/Full runtime gating、实验计时和静态资源 base 配置。 |
+| `src/config/runtime.ts`、`src/config/demoData.ts`、`.env.demo`、`vite.config.ts` | Demo/Full runtime gating、实验计时、只读演示历史与静态资源 base 配置。`demoData.ts` 不能写入 LocalStorage、同步或导出。 |
 | `src/components/assessment/` | 校准、稳定性、敲击、反应、螺旋、疲劳负荷和主观自评的交互步骤。 |
 | `src/components/charts/` | 波形、频谱、反应时、螺旋等图表和 Canvas 绘制。 |
 | `src/components/cognition/` | 4×4 空间记忆配对任务与结果页。 |
-| `src/components/games/StarCatcherGame.tsx` | 固定轨迹追踪任务。虽沿用 Star Catcher 名称，但不是随机小游戏。 |
+| `src/components/games/StarCatcherGame.tsx` | 固定高难度李萨如轨迹追踪任务。虽沿用 Star Catcher 名称，但不是随机小游戏。 |
+| `src/components/common/DemoRoleSwitcher.tsx`、`src/utils/celebration.ts` | Demo 一键身份视图切换；以及各采集任务完成时的短暂庆祝反馈。 |
 | `src/pages/` | 概览、传感器监视、报告、历史、设置、管理员、认知页。 |
 | `src/services/sensorAdapter.ts` | 真实浏览器 IMU 接入，不含模拟回退。 |
 | `src/services/storage.ts`、`cognitionStorage.ts` | LocalStorage 序列化、读写和配额错误处理。 |
@@ -191,7 +193,7 @@ cognitiveStabilityScoreRaw = 100
 虽然导航项仍称 Star Catcher，当前实现是固定 25 秒的李萨如目标追踪任务：
 
 - 黄色目标以固定方程运动，画布中没有禁区或碰撞处罚。
-- Canvas 指针移动时保存每个原始点：指针坐标、墙钟时间和同一时刻目标坐标。为兼容历史导出，旧的 No-Go 字段仍存在但新任务记录为 `false` 或 `0`。
+- Canvas 由 RAF 绘制；指针事件只更新坐标，约 30 Hz 的采样器持续保存原始点（即使指针不动）：指针坐标、墙钟时间和同一时刻目标坐标。游戏中仅绘制短尾迹，结束后展示完整双轨迹。为兼容历史导出，旧的 No-Go 字段仍存在但新任务记录为 `false` 或 `0`。
 - 输出追踪 RMSE、在靶比例，以及在 ±600 ms（40 ms 步长）搜索的相位滞后。
 - 标准化得分为 `max(0, 100 - RMSE)`，但主要研究导出应使用原始轨迹与明确的派生指标，而非旧的“捕星分数”兼容字段。
 

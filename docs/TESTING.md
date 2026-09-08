@@ -67,7 +67,8 @@ GitHub Pages 还需区分三层证据：本地 `build:demo`、GitHub Actions 的
 | 资产路径 | JS/CSS 使用 `/FineFatigue/` 前缀且加载成功 | `NOT VERIFIED` |
 | 真实 IMU | 支持设备并授权时读取真实 DeviceMotion；不支持/拒绝时明确提示 | `NOT VERIFIED` |
 | 无伪造 IMU | 不以模拟数据替代真实传感器 | `NOT VERIFIED` |
-| Demo UI | 不显示登录、云同步、管理后台和 Full API 依赖 | `NOT VERIFIED` |
+| Demo 身份与权限 UI | 不显示真实登录/云同步/API 依赖；可切换受试者和管理员演示视图，示例数据只读 | `NOT VERIFIED` |
+| Demo 示例数据 | 受试者显示静态历史与认知样例；管理员显示账户摘要；样例不写入 LocalStorage、同步或导出 | `NOT VERIFIED` |
 | Demo 任务 | 任务顺序和缩短时长与运行配置一致 | `NOT VERIFIED` |
 | 本地存储 | 结果可在同一浏览器本地保存和读取 | `NOT VERIFIED` |
 | 清理行为 | 清除站点数据后本地记录消失；设置键按实现保留规则处理 | `NOT VERIFIED` |
@@ -97,6 +98,8 @@ GitHub Pages 还需区分三层证据：本地 `build:demo`、GitHub Actions 的
 | Subjective Rating | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` |
 | Cognition Memory | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` |
 | Star Catcher | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` | `NOT VERIFIED` |
+
+Star Catcher 的人工验收还应检查：任务期间不展示完整未来目标路径；指针静止时路径样本仍随固定频率增长；结束后再显示完整目标/实际双轨迹；旧 No-Go 字段不出现在 UI。
 
 ## 7. 设备与浏览器矩阵
 

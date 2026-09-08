@@ -24,7 +24,8 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 
 | 位置 | 职责 |
 | --- | --- |
-| `src/App.tsx` | 顶层状态、页面切换、IMU 订阅、评测完成后的同步触发。 |
+| `src/App.tsx` | 顶层状态、页面切换、IMU 订阅、评测完成后的同步触发；Demo 下加载只读示例历史并切换演示身份。 |
+| `src/config/demoData.ts`、`src/components/common/DemoRoleSwitcher.tsx` | 静态 Demo 的运行时只读示例记录，以及一键受试者/管理员视图切换。不得将它们接入 LocalStorage、同步、CSV 或正式研究分析。 |
 | `src/components/assessment/` | 评测向导与每个采集步骤。`AssessmentWizard.tsx` 固定整个实验顺序。 |
 | `src/components/cognition/` | 空间记忆卡片、实际点击流程和认知结果展示。`MemoryGame.tsx` 管理随机牌组、配对锁定，逐次采集墙钟时间与单调任务相对时间。 |
 | `src/components/charts/` | 波形、频谱、敲击、反应、描摹可视化。 |
@@ -37,7 +38,7 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 | `src/services/cloudSyncService.ts` | 受试者向 `/api/sync` 的同步、备份导入导出；网络失败后最多进行 3 次指数退避重试，并在浏览器恢复在线时重试。 |
 | `src/services/aiMotivationService.ts` | AI 建议请求及本地规则降级。 |
 | `src/utils/cognitionMetrics.ts` | 从实际配对尝试计算准确率、响应时间、前后半程变化和透明的任务指标。 |
-| `src/utils/` | 指标计算、信号处理及疲劳评分。 |
+| `src/utils/` | 指标计算、信号处理、疲劳评分和 `celebration.ts` 完成反馈。 |
 | `server.mjs` | Express API、账户密码哈希、内存会话、JSON 存储、CSV 导出、MiMo 代理、静态站点服务。 |
 
 ## 3. 前后端交互
@@ -103,7 +104,7 @@ Demo timing 只用于 walkthrough；不要为了让 Demo 通过而修改 Full �
 - `npm run build:demo` 和 `/FineFatigue/` base。
 - `npm run preview:demo` 的静态资源、SPA fallback 和页面刷新。
 - Demo banner、LocalStorage 保存与清除行为。
-- 认证、同步、管理员和服务端 AI UI 是否仍被隐藏，浏览器是否没有依赖 `/api/*` 才能启动。
+- 浏览器是否没有依赖 `/api/*` 才能启动；Demo 的演示身份切换、只读示例历史/管理员摘要应可用，但真实认证、同步、修改、CSV 和服务端 AI 必须仍不可用。
 - GitHub Pages workflow 是否仍上传 `dist/`，且没有把 `dist/` 或 `.env` 加入 Git。
 
 ### 6.3 修改 Full 时
@@ -125,10 +126,11 @@ Demo timing 只用于 walkthrough；不要为了让 Demo 通过而修改 Full �
 3. **保护身份与数据。** 新接口必须保留相应认证/角色校验；导出与日志不要包含明文密码、令牌或 API Key。
 4. **同步为增量合并而非事务。** 浏览器首次同步会上传本机记录，成功后按受试者 ID 保存已确认 ID，后续仅上传新记录。服务端按记录 ID 与时间戳合并；同 ID 内容不同会保留较旧版本为 `-CONFLICT-...` 副本。没有服务器端删除语义，修改同步数据模型时需先设计迁移和删除策略。
 5. **评测顺序具有实验含义。** 调整 `AssessmentWizard` 步骤会改变数据可比性；同时更新 PRD、用户指南、会话类型和 CSV 字段。
-6. **认知数据必须来自交互。** 保留 `MemoryGame` 对随机牌组、一次两张选择和错误配对期间输入锁定的约束；不要在仪表盘、历史或导出中制造演示记录。逐次点击必须同时保留墙钟时间与单调相对时间，原始长表导出不得只保留聚合分数。
+6. **认知数据必须来自交互。** 保留 `MemoryGame` 对随机牌组、一次两张选择和错误配对期间输入锁定的约束；Full 的仪表盘、历史、同步与导出不得制造演示记录。唯一例外是 `src/config/demoData.ts` 中明确标识、只读且仅在 `DEMO_MODE` 运行时显示的静态样例；它不得持久化或进入研究数据。逐次点击必须同时保留墙钟时间与单调相对时间，原始长表导出不得只保留聚合分数。
 7. **认知指标公式可复算。** `memoryScore = accuracy × 100`；`responseSpeedScoreRaw = 100 - meanResponseTime / 30`，界面分数再限制到 0–100；`cognitiveStabilityScoreRaw = 100 - max(0, reactionTimeChange) × 50 - max(0, errorRateChange) × 100`，界面分数同样限制到 0–100。原始字段保留在 JSON 与汇总 CSV 中。修改公式时需同步更新 `cognitionMetrics.ts`、CSV 字段、结果说明与实验协议。
 8. **移动浏览器差异明显。** iOS 授权必须由用户手势触发，设备/浏览器/省电策略会影响事件频率。测试应覆盖目标手机与 HTTPS 访问路径。
-9. **Star Catcher 是固定追踪任务。** 它记录李萨如目标轨迹、指针原始点、RMSE、在靶时间和相位滞后；不要再将它标注为“平滑度”或以随机捕星分数作为实验指标。
+9. **Star Catcher 是固定追踪任务。** 它以约 30 Hz 记录李萨如目标轨迹和指针原始点（包括静止期间）、RMSE、在靶时间和相位滞后；不要再将它标注为“平滑度”或以随机捕星分数作为实验指标。旧 No-Go 字段固定为零，仅用于兼容。
+10. **完成反馈不得干扰测量。** `celebrateTaskCompletion()` 仅在任务采集完成后调用，并会尊重 `prefers-reduced-motion`；螺旋描摹不调用。任何新增任务若接入该反馈，必须放在停止数据写入之后。
 
 ## 8. 已知限制与待处理事项
 

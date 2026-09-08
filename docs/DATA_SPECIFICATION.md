@@ -105,9 +105,9 @@ Cognition 同时使用 `performance.now()` 记录单调递增的 `elapsedMs`，�
 
 ## 11. Star Catcher
 
-`StarCatcherResult` 当前 `taskVersion=lissajous-tracking-v1`，保存 `score`、`combo`、`starsCollected`、`totalStars`、`hitRate`、`averageReactionMs`、`controlAccuracy`、`movementSmoothness`、`fineMotorScore`、`durationSec`、`trackingRMSEPx`、`onTargetPercent`、`phaseLagMs`、`noGoEntries`、`noGoDwellMs` 和 `path[]`。
+`StarCatcherResult` 当前 `taskVersion=lissajous-tracking-v3`，保存 `score`、`combo`、`starsCollected`、`totalStars`、`hitRate`、`averageReactionMs`、`controlAccuracy`、`movementSmoothness`、`fineMotorScore`、`durationSec`、`trackingRMSEPx`、`onTargetPercent`、`phaseLagMs`、`noGoEntries`、`noGoDwellMs` 和 `path[]`。
 
-`path[]` 每点为 `{x,y,timestamp,targetX,targetY,inNoGo}`。Star Catcher 当前独立保存、同步和导出，不进入 `AssessmentReportData` 或四维疲劳指数。
+`path[]` 每点为 `{x,y,timestamp,targetX,targetY,inNoGo}`，约 30 Hz 采样，包含指针停留期间的样本。`inNoGo`、`noGoEntries` 和 `noGoDwellMs` 仅保留旧数据结构兼容性；当前任务没有禁区，分别固定为 `false`、`0`、`0`。Star Catcher 当前独立保存、同步和导出，不进入 `AssessmentReportData` 或四维疲劳指数。
 
 ## 12. Storage and server representation
 

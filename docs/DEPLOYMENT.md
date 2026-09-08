@@ -14,7 +14,7 @@ npm run preview:demo
 
 Demo 通过 `.env.demo` 设置 `VITE_DEMO_MODE=true`，Vite 的 base 为 `/FineFatigue/`。本地预览服务默认监听 `http://127.0.0.1:4174/FineFatigue/`，只提供静态文件和 SPA fallback，不提供 `/api`。
 
-Demo 适合公开演示、课堂和流程检查：任务仍要求真实用户交互，IMU 仍来自浏览器真实 DeviceMotion 事件，但不提供账户、云同步、管理后台、LAN JSON API 或 Full 的服务端 AI 路径。缩短的任务时长也不应与 Full / Research 数据混合分析。
+Demo 适合公开演示、课堂和流程检查：任务仍要求真实用户交互，IMU 仍来自浏览器真实 DeviceMotion 事件。它提供一键受试者/管理员**演示身份**切换、只读示例历史与管理员账户摘要，以展示页面权限和数据形态；这不是真实认证、不会请求 API、不能同步、修改账户或导出 CSV。缩短的任务时长也不应与 Full / Research 数据混合分析。
 
 ### 1.2 GitHub Pages flow
 

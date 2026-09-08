@@ -12,7 +12,7 @@ FineFatigue 是一个代码库中的两种运行配置，而不是两套独立�
 
 ### Online Demo
 
-目标是公开访问、课堂演示、快速 walkthrough 和产品原型展示。Demo 不承担正式实验数据采集：它没有受试者账号、管理员、LAN 同步、服务端存储或服务端 MiMo。浏览器端交互仍是真实点击、Canvas、LocalStorage，以及在设备支持并授权时的真实 DeviceMotion；建议和结果只保存在当前浏览器。
+目标是公开访问、课堂演示、快速 walkthrough 和产品原型展示。Demo 不承担正式实验数据采集：它没有真实受试者账号、LAN 同步、服务端存储或服务端 MiMo。浏览器端交互仍是真实点击、Canvas、LocalStorage，以及在设备支持并授权时的真实 DeviceMotion；它额外提供一键演示受试者/管理员视图切换，以及运行时只读的示例历史和管理员摘要。示例不写入 LocalStorage、不会同步、修改或导出。
 
 ### Local Full / Research Mode
 
@@ -24,9 +24,9 @@ FineFatigue 是一个代码库中的两种运行配置，而不是两套独立�
 | Real IMU | Supported device and permission only | Supported device and permission only |
 | LocalStorage | Yes | Yes |
 | Full research timings | No; shortened for walkthrough | Yes |
-| Authentication | No | Yes |
+| Authentication | No；仅演示身份切换 | Yes |
 | LAN synchronization | No | Yes |
-| Admin | No | Yes |
+| Admin | 只读示例界面 | Yes |
 | CSV export | No | Yes |
 | Server MiMo | No; local rules only | Optional |
 | GitHub Pages | Yes | No |
@@ -113,8 +113,9 @@ FineFatigue 是一个代码库中的两种运行配置，而不是两套独立�
 
 ```text
 Online Demo（GitHub Pages）
-  ├─ 访客：设置本地编号 → 浏览器本地评测/认知/追踪 → 本地记录
-  └─ 不连接账号、LAN 服务、管理员或服务端 AI
+  ├─ 演示受试者：查看只读示例历史 → 浏览器本地评测/认知/追踪 → 本地记录
+  ├─ 演示管理员：查看只读账户、次数和报酬摘要
+  └─ 不连接真实账号、LAN 服务、服务端导出或服务端 AI
 
 Local Full（Tailscale HTTPS）
   ├─ 访客：设置本地编号 → 授权 IMU → 完成评测 → 本地报告
