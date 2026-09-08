@@ -24,8 +24,8 @@ export const DemoModeBanner: React.FC = () => {
           </div>
           <p className="mt-1 text-xs leading-relaxed text-cyan-900/80">
             {zh
-              ? '数据仅保存在当前浏览器，不会上传服务器。可切换受试者和管理员视图；管理员页展示的是只读示例数据。'
-              : 'Data stays in this browser and is not uploaded. You can switch participant and administrator views; the administrator page contains read-only example data.'}
+              ? '数据仅保存在当前浏览器，不会上传服务器。受试者视图含只读历史示例，管理员页含只读账户示例；两种身份均可一键切换。'
+              : 'Data stays in this browser and is not uploaded. The participant view includes read-only history examples, the administrator view includes read-only account examples, and both identities can be switched with one click.'}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-medium text-cyan-800">
             <span className="inline-flex items-center gap-1.5">

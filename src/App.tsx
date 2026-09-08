@@ -21,6 +21,7 @@ import { CognitionStorage } from './services/cognitionStorage';
 import { DEMO_MODE } from './config/runtime';
 import { DemoModeBanner } from './components/common/DemoModeBanner';
 import { DemoRoleSwitcher } from './components/common/DemoRoleSwitcher';
+import { DEMO_COGNITION_RESULTS, DEMO_SESSIONS, DEMO_SUBJECTIVE_RECORDS } from './config/demoData';
 import { 
   AssessmentReportData, 
   IMUDataPoint, 
@@ -65,6 +66,14 @@ export default function App() {
 
   // Load sessions and subjective records from storage on mount
   useEffect(() => {
+    if (DEMO_MODE) {
+      setSessions(DEMO_SESSIONS);
+      setActiveReport(DEMO_SESSIONS[0]);
+      setSubjectiveRecords(DEMO_SUBJECTIVE_RECORDS);
+      setCognitionResults(DEMO_COGNITION_RESULTS);
+      setSubjectId(DEMO_PARTICIPANT.participantCode);
+      return;
+    }
     const loadedSessions = StorageService.getSessions();
     setSessions(loadedSessions);
     if (loadedSessions.length > 0) {
@@ -155,6 +164,13 @@ export default function App() {
 
   const handleResetData = () => {
     StorageService.resetToDefaults();
+    if (DEMO_MODE) {
+      setSessions(DEMO_SESSIONS);
+      setActiveReport(DEMO_SESSIONS[0]);
+      setSubjectiveRecords(DEMO_SUBJECTIVE_RECORDS);
+      setCognitionResults(DEMO_COGNITION_RESULTS);
+      return;
+    }
     const refreshed = StorageService.getSessions();
     setSessions(refreshed);
     setSubjectiveRecords(StorageService.getSubjectiveFatigueRecords());
@@ -166,8 +182,9 @@ export default function App() {
   };
 
   const handleDeleteSession = (id: string) => {
+    if (DEMO_MODE && id.startsWith('DEMO-')) return;
     StorageService.deleteSession(id);
-    const refreshed = StorageService.getSessions();
+    const refreshed = DEMO_MODE ? [...StorageService.getSessions(), ...DEMO_SESSIONS] : StorageService.getSessions();
     setSessions(refreshed);
     if (activeReport?.id === id) {
       setActiveReport(refreshed[0] || null);
@@ -180,20 +197,20 @@ export default function App() {
 
   const handleAssessmentComplete = async (report: AssessmentReportData) => {
     setActiveReport(report);
-    setSessions(StorageService.getSessions());
+    setSessions(DEMO_MODE ? [report, ...DEMO_SESSIONS] : StorageService.getSessions());
     cloudSyncService.markPending();
     await cloudSyncService.syncNow();
-    setSessions(StorageService.getSessions());
-    setSubjectiveRecords(StorageService.getSubjectiveFatigueRecords());
+    setSessions(DEMO_MODE ? [report, ...DEMO_SESSIONS] : StorageService.getSessions());
+    setSubjectiveRecords(DEMO_MODE ? [report.subjectiveFatigue, ...DEMO_SUBJECTIVE_RECORDS].filter(Boolean) as SubjectiveFatigueRecord[] : StorageService.getSubjectiveFatigueRecords());
     setCurrentTab('report');
   };
 
   const handleCognitionComplete = async (result: CognitionMemoryResult) => {
     CognitionStorage.addResult(result);
-    setCognitionResults(CognitionStorage.getResults());
+    setCognitionResults(DEMO_MODE ? [result, ...DEMO_COGNITION_RESULTS] : CognitionStorage.getResults());
     cloudSyncService.markPending();
     await cloudSyncService.syncNow();
-    setCognitionResults(CognitionStorage.getResults());
+    setCognitionResults(DEMO_MODE ? [result, ...DEMO_COGNITION_RESULTS] : CognitionStorage.getResults());
   };
 
   const handleOpenReport = (report: AssessmentReportData) => {
