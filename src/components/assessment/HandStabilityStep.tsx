@@ -6,6 +6,7 @@ import { FrequencySpectrumChart } from '../charts/FrequencySpectrumChart';
 import { analyzeHandStability } from '../../utils/signalProcessing';
 import { useI18n } from '../../i18n/context';
 import { EXPERIMENT_TIMINGS } from '../../config/runtime';
+import { celebrateTaskCompletion } from '../../utils/celebration';
 
 interface HandStabilityStepProps {
   currentData: IMUDataPoint | null;
@@ -79,6 +80,7 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
       const metrics = analyzeHandStability(recordedDataRef.current, { calibration });
       setCalculatedMetrics(metrics);
       setStage('finished');
+      celebrateTaskCompletion();
     }, stabilityDurationMs);
     return () => { unsubscribe(); window.clearInterval(ticker); window.clearTimeout(timer); };
   }, [stage, calibration, stabilityDurationMs, subscribeToImu]);

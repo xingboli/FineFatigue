@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { SubjectiveFatigueRecord } from '../../types';
 import { useI18n } from '../../i18n/context';
+import { celebrateTaskCompletion } from '../../utils/celebration';
 
 interface SubjectiveAssessmentStepProps {
   onComplete: (record: SubjectiveFatigueRecord) => void;
@@ -127,6 +128,7 @@ export const SubjectiveAssessmentStep: React.FC<SubjectiveAssessmentStepProps> =
       sensations: selectedSensations,
       note: note.trim() ? note.trim() : undefined
     };
+    celebrateTaskCompletion();
     onComplete(record);
   };
 

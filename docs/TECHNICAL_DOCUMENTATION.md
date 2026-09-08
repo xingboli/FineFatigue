@@ -88,7 +88,7 @@ Express（server.mjs，0.0.0.0:PORT）
 | `src/components/assessment/` | 校准、稳定性、敲击、反应、螺旋、疲劳负荷和主观自评的交互步骤。 |
 | `src/components/charts/` | 波形、频谱、反应时、螺旋等图表和 Canvas 绘制。 |
 | `src/components/cognition/` | 4×4 空间记忆配对任务与结果页。 |
-| `src/components/games/StarCatcherGame.tsx` | 固定轨迹追踪/No-Go 任务。虽沿用 Star Catcher 名称，但不是随机小游戏。 |
+| `src/components/games/StarCatcherGame.tsx` | 固定轨迹追踪任务。虽沿用 Star Catcher 名称，但不是随机小游戏。 |
 | `src/pages/` | 概览、传感器监视、报告、历史、设置、管理员、认知页。 |
 | `src/services/sensorAdapter.ts` | 真实浏览器 IMU 接入，不含模拟回退。 |
 | `src/services/storage.ts`、`cognitionStorage.ts` | LocalStorage 序列化、读写和配额错误处理。 |
@@ -190,10 +190,10 @@ cognitiveStabilityScoreRaw = 100
 
 虽然导航项仍称 Star Catcher，当前实现是固定 25 秒的李萨如目标追踪任务：
 
-- 黄色目标以固定方程运动，红色中心圆为固定 No-Go 区。
-- Canvas 指针移动时保存每个原始点：指针坐标、墙钟时间、同一时刻目标坐标、No-Go 状态。
-- 输出追踪 RMSE、在靶比例、在 ±600 ms（40 ms 步长）搜索的相位滞后、No-Go 进入次数和停留时间。
-- 标准化得分为 `max(0, 100 - RMSE - 10 × noGoEntries)`，但主要研究导出应使用原始轨迹与明确的派生指标，而非旧的“捕星分数”兼容字段。
+- 黄色目标以固定方程运动，画布中没有禁区或碰撞处罚。
+- Canvas 指针移动时保存每个原始点：指针坐标、墙钟时间和同一时刻目标坐标。为兼容历史导出，旧的 No-Go 字段仍存在但新任务记录为 `false` 或 `0`。
+- 输出追踪 RMSE、在靶比例，以及在 ±600 ms（40 ms 步长）搜索的相位滞后。
+- 标准化得分为 `max(0, 100 - RMSE)`，但主要研究导出应使用原始轨迹与明确的派生指标，而非旧的“捕星分数”兼容字段。
 
 该任务不写入主评测会话，也不进入疲劳指数；它独立保存、同步和导出。
 
@@ -270,7 +270,7 @@ cognitiveStabilityScoreRaw = 100
 - 使用受试者编号而非明文密码，但该编号仍可识别研究对象；导出属于受控研究数据。
 - `raw.csv` 的 `record_type` 为 `imu`、`tap`、`reaction`、`trace` 或 `spectrum`；不适用字段留空。每一行有 `participant_code`、`session_id`、`phase`、`record_index`，反应记录包含 `is_early`。
 - `cognition-raw.csv` 的 `record_type` 为 `selection` 或 `attempt`；保存 schema/task version 和墙钟/相对时间。
-- `games.csv` 每个指针点一行，并重复该任务的 RMSE、在靶比例、相位滞后和 No-Go 汇总字段，方便无需 join 的轨迹分析。
+- `games.csv` 每个指针点一行，并重复该任务的 RMSE、在靶比例和相位滞后字段，方便无需 join 的轨迹分析；保留的旧 No-Go 列对新任务值为 `false` 或 `0`。
 
 导出没有去标识化流水线、访问审计、字段选择或加密压缩。研究人员应自行建立数据版本、导出审批、访问控制和脱敏流程。
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Flame, Play, CheckCircle2, Zap } from 'lucide-react';
 import { useI18n } from '../../i18n/context';
 import { DEMO_MODE, EXPERIMENT_TIMINGS } from '../../config/runtime';
+import { celebrateTaskCompletion } from '../../utils/celebration';
 
 interface FatigueChallengeStepProps {
   onComplete: (durationSec: number, totalTaps: number) => void;
@@ -34,6 +35,7 @@ export const FatigueChallengeStep: React.FC<FatigueChallengeStepProps> = ({ onCo
           clearInterval(timer);
           setMeasuredDurationSec((Date.now() - startTimeRef.current) / 1000);
           setStage('finished');
+          celebrateTaskCompletion();
           return 0;
         }
 

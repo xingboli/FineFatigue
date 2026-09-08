@@ -12,7 +12,7 @@
 | Spiral tracing | pointer path and template | RMSE, speed, smoothness, pauses | geometry acceptance and display clamp | fine motor precision/control | Not validated for this battery |
 | Subjective | 1–10 rating, sensations, note | level/record linkage | UI range and text limit | perceived fatigue | Face-level capture only; no criterion validity shown |
 | Cognition memory | card interactions and elapsed times | accuracy, speed, stability scores | schema v2 formulas | spatial memory / response speed | Independent task; not part of fatigue index |
-| Star Catcher | pointer path, target, No-Go markers | RMSE, on-target, lag, inhibition counts | score and task thresholds | continuous visuomotor/inhibitory control | Independent task; not part of fatigue index |
+| Star Catcher | pointer path and target | RMSE, on-target, lag | score and task thresholds | continuous visuomotor tracking | Independent task; not part of fatigue index |
 
 文献可支持任务构念和一般行为学解释；不能单凭文献证明本项目的权重、阈值、实现细节或最终分数已经验证。
 

@@ -128,7 +128,7 @@ Demo timing 只用于 walkthrough；不要为了让 Demo 通过而修改 Full �
 6. **认知数据必须来自交互。** 保留 `MemoryGame` 对随机牌组、一次两张选择和错误配对期间输入锁定的约束；不要在仪表盘、历史或导出中制造演示记录。逐次点击必须同时保留墙钟时间与单调相对时间，原始长表导出不得只保留聚合分数。
 7. **认知指标公式可复算。** `memoryScore = accuracy × 100`；`responseSpeedScoreRaw = 100 - meanResponseTime / 30`，界面分数再限制到 0–100；`cognitiveStabilityScoreRaw = 100 - max(0, reactionTimeChange) × 50 - max(0, errorRateChange) × 100`，界面分数同样限制到 0–100。原始字段保留在 JSON 与汇总 CSV 中。修改公式时需同步更新 `cognitionMetrics.ts`、CSV 字段、结果说明与实验协议。
 8. **移动浏览器差异明显。** iOS 授权必须由用户手势触发，设备/浏览器/省电策略会影响事件频率。测试应覆盖目标手机与 HTTPS 访问路径。
-9. **Star Catcher 是固定追踪任务。** 它记录李萨如目标轨迹、指针原始点、RMSE、在靶时间、相位滞后与 No-Go 事件；不要再将它标注为“平滑度”或以随机捕星分数作为实验指标。
+9. **Star Catcher 是固定追踪任务。** 它记录李萨如目标轨迹、指针原始点、RMSE、在靶时间和相位滞后；不要再将它标注为“平滑度”或以随机捕星分数作为实验指标。
 
 ## 8. 已知限制与待处理事项
 

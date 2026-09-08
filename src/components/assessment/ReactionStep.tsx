@@ -4,6 +4,7 @@ import { ReactionMetrics, ReactionTrial } from '../../types';
 import { ReactionTrialChart } from '../charts/ReactionTrialChart';
 import { useI18n } from '../../i18n/context';
 import { EXPERIMENT_TIMINGS } from '../../config/runtime';
+import { celebrateTaskCompletion } from '../../utils/celebration';
 
 const TOTAL_TRIALS = EXPERIMENT_TIMINGS.reactionTrials;
 
@@ -73,6 +74,7 @@ export const ReactionStep: React.FC<ReactionStepProps> = ({
 
       if (currentTrialNum >= TOTAL_TRIALS) {
         setStage('finished');
+        celebrateTaskCompletion();
       } else {
         setStage('trial_result');
         setTimeout(() => {

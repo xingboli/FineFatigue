@@ -5,6 +5,7 @@ import { analyzeTapping } from '../../utils/tappingAnalysis';
 import { TapIntervalChart } from '../charts/TapIntervalChart';
 import { useI18n } from '../../i18n/context';
 import { EXPERIMENT_TIMINGS } from '../../config/runtime';
+import { celebrateTaskCompletion } from '../../utils/celebration';
 
 interface FingerTappingStepProps {
   isPostFatigue?: boolean;
@@ -55,6 +56,7 @@ export const FingerTappingStep: React.FC<FingerTappingStepProps> = ({
       const metrics = analyzeTapping(tapsRef.current, tappingDurationMs);
       setCalculatedMetrics(metrics);
       setStage('finished');
+      celebrateTaskCompletion();
     }
   }, [stage, timeLeft, tappingDurationMs]);
 

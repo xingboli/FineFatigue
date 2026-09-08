@@ -3,6 +3,7 @@ import { Clock3, MoveRight, Target } from 'lucide-react';
 import { CognitionMemoryResult, MemoryAttempt, MemoryInteractionEvent } from '../../types';
 import { calculateCognitionMemoryResult } from '../../utils/cognitionMetrics';
 import { MemoryCard, MemoryCardData } from './MemoryCard';
+import { celebrateTaskCompletion } from '../../utils/celebration';
 
 const PAIRS = ['◆', '●', '▲', '■', '★', '✦', '♥', '☀'];
 
@@ -73,6 +74,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({ sessionKey, locale, onCo
   const finish = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
+    celebrateTaskCompletion();
     const completedAt = Date.now();
     const totalDuration = Math.round(performance.now() - startedPerformanceRef.current);
     void onComplete(calculateCognitionMemoryResult(startedAtRef.current, completedAt, totalDuration, PAIRS.length, attemptsRef.current, interactionsRef.current));
