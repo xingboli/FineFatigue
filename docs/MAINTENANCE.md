@@ -81,7 +81,44 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 
 推荐部署步骤：先执行 `npm run build`，再使用 `npm start`。若通过 Tailscale Serve 暴露，确认其根路径指向运行中的 `http://127.0.0.1:<PORT>`，并以 `tailscale serve status` 复核。修改 `.env`、更新代码或更新构建后，都需要重启服务。
 
-## 6. 后续开发注意事项
+## 6. Runtime 变更规则
+
+### 6.1 修改实验参数时
+
+必须同时核对：
+
+- `src/config/runtime.ts`
+- 对应的 assessment components
+- `docs/EXPERIMENT_PROTOCOL.md`
+- `docs/DATA_SPECIFICATION.md`
+- `docs/TESTING.md`
+- `docs/FATIGUE_ASSESSMENT_RATIONALE.md`
+
+Demo timing 只用于 walkthrough；不要为了让 Demo 通过而修改 Full 的研究参数，也不要把两种 runtime 的数据描述为等价。
+
+### 6.2 修改 Demo 时
+
+至少检查：
+
+- `npm run build:demo` 和 `/FineFatigue/` base。
+- `npm run preview:demo` 的静态资源、SPA fallback 和页面刷新。
+- Demo banner、LocalStorage 保存与清除行为。
+- 认证、同步、管理员和服务端 AI UI 是否仍被隐藏，浏览器是否没有依赖 `/api/*` 才能启动。
+- GitHub Pages workflow 是否仍上传 `dist/`，且没有把 `dist/` 或 `.env` 加入 Git。
+
+### 6.3 修改 Full 时
+
+至少检查：
+
+- `npm run build`、`npm start` 和 `GET /api/health`。
+- 注册/审核/登录/退出、受试者同步、管理员、CSV 和可选 MiMo 路径。
+- `.env.example`、`data/finefatigue-store.json`、Tailscale Serve 目标和 JSON 备份策略。
+
+### 6.4 修改 Shared UI 或服务时
+
+必须分别验证 Demo 和 Full。任何跨 runtime 的 feature gating 都要沿着 `import → component → service → runtime condition → actual call path` 检查，不能只搜索文件名或凭存在的 legacy 文件判断功能可用。
+
+## 7. 后续开发注意事项
 
 1. **保持真实采集原则。** 不要为“好看”或开发便利在真实实验页面回填 IMU 模拟波形。无事件时必须保持不可用或未采集状态。
 2. **不要把主观自评纳入当前客观指数。** 评分逻辑在 `src/utils/fatigueScoring.ts`；如实验方案变化，应同时更新类型、导出字段、报告文案与协议文档。
@@ -93,7 +130,7 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 8. **移动浏览器差异明显。** iOS 授权必须由用户手势触发，设备/浏览器/省电策略会影响事件频率。测试应覆盖目标手机与 HTTPS 访问路径。
 9. **Star Catcher 是固定追踪任务。** 它记录李萨如目标轨迹、指针原始点、RMSE、在靶时间、相位滞后与 No-Go 事件；不要再将它标注为“平滑度”或以随机捕星分数作为实验指标。
 
-## 7. 已知限制与待处理事项
+## 8. 已知限制与待处理事项
 
 - 当前数据层是单机 JSON，未实现数据库、备份自动化、并发写入控制、静态文件持久化服务或灾难恢复。
 - 服务端内存会话会在重启后失效；未实现密码找回、登录限流、审计日志、HTTPS 以外的传输策略或细粒度管理员角色。

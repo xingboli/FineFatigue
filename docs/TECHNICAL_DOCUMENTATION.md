@@ -1,6 +1,6 @@
 # FineFatigue 技术文档
 
-> 本文基于当前仓库代码整理，面向接手维护、实验运行与数据处理人员。它描述的是已经实现的行为，而不是产品路线图。最后核对代码版本：`d817fdc`。
+> 本文基于当前仓库代码整理，面向接手维护、实验运行与数据处理人员。它描述的是已经实现的行为，而不是产品路线图。最后核对代码实现基线：`bb0ec60`；后续提交仅为文档变更时，应以实际 Git history 为准。
 
 ## 1. 系统定位与边界
 
@@ -10,7 +10,40 @@ FineFatigue 是一个面向移动浏览器的疲劳/精细运动实验数据采�
 
 系统采用单页 React 前端与同源 Express 服务端。服务端适合实验室 LAN/Tailscale 中的单实例运行，不是多租户、分布式、高并发或临床级数据平台。
 
-## 2. 运行架构
+## 2. Runtime Architecture
+
+FineFatigue 采用一个代码库加 runtime feature gating，而不是维护两套 UI。这样可以让传感器适配、任务计算、LocalStorage 和报告流程保持一致，同时用构建配置明确限制 Demo 的后端能力。
+
+```text
+                         Shared React Application
+                                  │
+                       src/config/runtime.ts
+                           │              │
+                    VITE_DEMO_MODE     default Full
+                           │              │
+             Online Static Demo     Local Full / Research
+                           │              │
+                    GitHub Pages       Express server.mjs
+                    /FineFatigue/      /api/* + dist/
+                           │              │
+                    Browser-only      JSON store / Auth / Admin
+                    LocalStorage      LAN sync / optional MiMo
+```
+
+`src/config/runtime.ts` 暴露 `DEMO_MODE`、`RUNTIME_MODE` 和 `EXPERIMENT_TIMINGS`。`.env.demo` 设置 `VITE_DEMO_MODE=true`；`vite.config.ts` 在 Demo mode 使用 `base=/FineFatigue/`，默认 Full 使用 `/`。`scripts/serve-demo.mjs` 只为本地预览提供 `/FineFatigue/` 子路径，不提供 `/api/*`。
+
+| 能力 | Demo | Full |
+| --- | --- | --- |
+| 实验 UI、Canvas、真实点击 | 有 | 有 |
+| DeviceMotion IMU | 支持设备并授权时有 | 支持设备并授权时有 |
+| LocalStorage | 有 | 有 |
+| Full research timings | 无，缩短用于 walkthrough | 有 |
+| 认证、LAN 同步、管理员、CSV | 无 | 有 |
+| MiMo | 无，使用本地规则 | 可选服务端能力 |
+
+Demo 不是模拟传感器模式。`App.tsx` 的当前入口实例化的是 `RealHardwareSensorAdapter`；仓库中保留的 `src/services/sensorSimulator.ts` 没有沿当前入口导入或调用，不得据此在文档或演示中宣称存在可用的模拟 IMU。
+
+### 2.1 Local Full request path
 
 ```text
 手机 / 平板浏览器（Tailscale HTTPS）
@@ -32,11 +65,26 @@ Express（server.mjs，0.0.0.0:PORT）
 - 为了让移动端浏览器获得 `DeviceMotion` 权限，实际实验应从 HTTPS 页面进入。当前推荐由 Tailscale Serve 将 Tailnet HTTPS 地址反代到 `http://127.0.0.1:3000`。
 - 前后端使用相对路径 `/api/*`，因此生产环境不能把静态前端部署到另一个域名后仍期望认证与同步可用。
 
+### 2.2 Runtime timing parameters
+
+参数由 `EXPERIMENT_TIMINGS` 提供，Demo 只为课堂 walkthrough 和展示缩短时长；Full 才是当前 Research Mode 的正式实验实现。
+
+| 参数 | Demo | Full |
+| --- | ---: | ---: |
+| Calibration | 1.5 s | 3 s |
+| Stability | 5 s | 15 s |
+| Tapping | 8 s | 15 s |
+| Challenge options | 10 / 20 s | 30 / 60 s |
+| Reaction valid trials | 5 | 30 |
+| Reaction delay | 0.7–1.8 s | 2–10 s |
+| Star Catcher | 10 s | 25 s |
+
 ## 3. 仓库与模块职责
 
 | 路径 | 职责 |
 | --- | --- |
 | `src/App.tsx` | 顶层路由状态、硬件适配器单例、IMU 订阅、任务结束后的保存与同步触发。 |
+| `src/config/runtime.ts`、`.env.demo`、`vite.config.ts` | Demo/Full runtime gating、实验计时和静态资源 base 配置。 |
 | `src/components/assessment/` | 校准、稳定性、敲击、反应、螺旋、疲劳负荷和主观自评的交互步骤。 |
 | `src/components/charts/` | 波形、频谱、反应时、螺旋等图表和 Canvas 绘制。 |
 | `src/components/cognition/` | 4×4 空间记忆配对任务与结果页。 |
@@ -101,7 +149,7 @@ stabilityScore = clamp(round(stabilityScoreRaw), 0, 100)
 → 报告
 ```
 
-- **交替敲击**：默认记录 15 秒内每一次左右靶点击、墙钟时间、相邻间隔和相对时间。分析提供总体频率、平均 ITI、节律 CV、前三/中间/后五秒频率。`performanceDecrement = max(0, (first5sRate-last5sRate)/first5sRate × 100)`；负值不会被解释为疲劳改善。
+- **交替敲击**：Full 默认记录 15 秒内每一次左右靶点击、墙钟时间、相邻间隔和相对时间；Demo 记录 8 秒。分析把实际录制时长等分为三段，输出总体频率、平均 ITI、节律 CV 和三段频率。字段名 `first5sRate` / `middle5sRate` / `last5sRate` 为历史兼容名称，在 Demo 中代表实际 8 秒录制的三个等时段。`performanceDecrement = max(0, (firstSegmentRate-lastSegmentRate)/firstSegmentRate × 100)`；负值不会被解释为疲劳改善。
 - **反应时**：30 个有效试次；每轮随机等待 2–10 秒后显示刺激。抢跑保存为 `isEarly=true`、RT=0，并重复该有效试次。有效试次保存墙钟时间、RT；结果包含平均/中位/最快/最慢、抢跑比例、≥500 ms 的 lapse 数和平均 reciprocal reaction time。其间隔设计参考 PVT 风格，但项目没有实现完整临床 PVT 协议或常模。
 - **阿基米德螺旋**：模板为 3.5 圈、301 个点。画板每次开始清空旧笔画，当前实现只接受一笔；完成门槛为从近中心向外覆盖至少约 90% 的模板进度。原始指针点完整保存。派生 `pathRMSE` 在展示层限制为 3–30 px，`smoothness` 限制为 35–96，原始轨迹仍可供后续重新计算。
 - **疲劳挑战**：保存实际经过时间和实际敲击数，而非仅使用 UI 预设时长。
@@ -255,8 +303,11 @@ cognitiveStabilityScoreRaw = 100
 npm install
 npm run lint       # tsc --noEmit
 npm run build      # Vite 生产构建到 dist/
+npm run build:demo # Vite Demo 构建，base=/FineFatigue/
 npm start          # Express：静态文件 + API
 npm run dev        # 仅 Vite 前端开发服务器
+npm run preview    # Vite 构建预览；不提供 API
+npm run preview:demo # Demo 子路径静态预览
 ```
 
 建议部署顺序：配置 `.env` → `npm install` → `npm run lint` → `npm run build` → `npm start` → 用 `GET /api/health` 验证 → 设置/检查 Tailscale Serve 指向 `127.0.0.1:<PORT>` → 用真实手机在 HTTPS 地址完成授权与采样验收。
