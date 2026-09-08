@@ -157,7 +157,7 @@ export const HandStabilityStep: React.FC<HandStabilityStepProps> = ({
           <ShieldAlert className="w-7 h-7 text-amber-600 mx-auto" />
           <div>
             <h3 className="font-bold text-amber-950">{locale === 'zh' ? '无法开始稳定性采集：IMU 传感器不可用' : 'Cannot start stability recording: IMU unavailable'}</h3>
-            <p className="text-xs text-amber-800 mt-1">{sensorStatus.permission === 'unsupported' ? (locale === 'zh' ? '当前设备未提供可用的运动传感器，可使用支持 IMU 的手机通过 HTTPS 打开本页面体验相关功能。' : 'This device does not provide a usable motion sensor. Open this HTTPS page on a phone with IMU support to try this feature.') : (locale === 'zh' ? '此实验项不会生成替代数据或默认分数。请在手机上授权运动与方向访问，然后重新开始。' : 'This study item will not generate substitute data or a default score. Authorize Motion & Orientation access on the phone, then try again.')}</p>
+            <p className="text-xs text-amber-800 mt-1">{sensorStatus.permission === 'unsupported' ? (locale === 'zh' ? '当前设备未提供可用的运动传感器，请使用支持 IMU 的手机通过 HTTPS 打开本页面。' : 'This device does not provide a usable motion sensor. Open this HTTPS page on a phone with IMU support.') : (locale === 'zh' ? '请在手机上授权运动与方向访问，然后重新开始。' : 'Authorize Motion & Orientation access on the phone, then try again.')}</p>
           </div>
           <button
             type="button"

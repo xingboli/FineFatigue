@@ -125,7 +125,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <span className={`w-2 h-2 rounded-full ${sensorStatus.connected ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
               {sensorStatus.connected
                 ? `${t.common.connected} (${t.common.hardware})`
-                : (locale === 'zh' ? 'IMU 传感器不可用（不会生成替代数据）' : 'IMU unavailable (no substitute data is generated)')}
+                : (locale === 'zh' ? 'IMU 传感器不可用' : 'IMU unavailable')}
             </span>
           </div>
           <div>

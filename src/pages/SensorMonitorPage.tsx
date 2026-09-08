@@ -29,7 +29,7 @@ export const SensorMonitorPage: React.FC<SensorMonitorPageProps> = ({ sensorStat
           <div>
             <span className="text-xs font-semibold text-cyan-700 uppercase tracking-wider font-mono">{t.monitor.tag}</span>
             <h1 className="text-2xl font-bold text-slate-900 mt-1">{t.monitor.title}</h1>
-            <p className="text-sm text-slate-500 mt-1 max-w-2xl">{locale === 'zh' ? '仅展示浏览器从本设备 IMU 读取的真实 DeviceMotion 数据；不会生成模拟波形。' : 'Shows only physical DeviceMotion data read from this device; no simulated waveforms are generated.'}</p>
+            <p className="text-sm text-slate-500 mt-1 max-w-2xl">{locale === 'zh' ? '显示浏览器从本设备 IMU 读取的实时 DeviceMotion 数据。' : 'Displays real-time DeviceMotion data read from this device.'}</p>
           </div>
           {isUnavailable && (
             <button type="button" disabled={isRequestingAccess || sensorStatus.permission === 'unsupported'} onClick={requestAccess} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-semibold disabled:opacity-50">
