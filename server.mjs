@@ -3,14 +3,42 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DatabaseSync } from 'node:sqlite';
 import express from 'express';
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
-const dataFile = path.join(rootDir, 'data', 'finefatigue-store.json');
+const legacyDataFile = path.join(rootDir, 'data', 'finefatigue-store.json');
+const sqliteFile = path.resolve(rootDir, process.env.SQLITE_DATABASE_PATH || 'data/finefatigue.db');
+const dataDir = path.dirname(sqliteFile);
 const app = express();
 const activeSessions = new Map();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '2mb' }));
+
+fs.mkdirSync(dataDir, { recursive: true });
+const database = new DatabaseSync(sqliteFile);
+database.exec(`
+  PRAGMA journal_mode = WAL;
+  PRAGMA foreign_keys = ON;
+  CREATE TABLE IF NOT EXISTS schema_info (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  INSERT OR IGNORE INTO schema_info (key, value) VALUES ('schema_version', '1');
+  CREATE TABLE IF NOT EXISTS accounts (
+    account_id TEXT PRIMARY KEY,
+    login_key TEXT NOT NULL UNIQUE,
+    user_json TEXT NOT NULL,
+    password_json TEXT NOT NULL,
+    sessions_json TEXT NOT NULL,
+    subjective_json TEXT NOT NULL,
+    cognition_json TEXT NOT NULL,
+    games_json TEXT NOT NULL,
+    settings_json TEXT NOT NULL,
+    compensation_json TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS accounts_login_key_idx ON accounts(login_key);
+`);
 
 function isLegacySampleRecord(item) {
   return String(item?.id || '').startsWith('DEMO-SUBJ-');
@@ -20,36 +48,75 @@ function isLegacySampleAccount(accountId, account) {
   return (accountId === 'USR-SUBJ-001' && profile?.name === '张受试 (Participant 01)') ||
     (accountId === 'USR-SUBJ-002' && profile?.name === '王同学 (Student Trial)');
 }
-function readStore() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-    const accounts = parsed.accounts && typeof parsed.accounts === 'object' ? parsed.accounts : {};
-    for (const [accountId, account] of Object.entries(accounts)) {
-      if (isLegacySampleAccount(accountId, account)) {
-        delete accounts[accountId];
-        continue;
-      }
-      account.sessions = Array.isArray(account.sessions) ? account.sessions.filter(session => !isLegacySampleRecord(session)) : [];
-      account.subjective = Array.isArray(account.subjective) ? account.subjective : [];
-      account.cognition = Array.isArray(account.cognition) ? account.cognition : [];
-      account.games = Array.isArray(account.games) ? account.games : [];
-      account.settings = account.settings && typeof account.settings === 'object' ? account.settings : {};
-      account.compensation = account.compensation && typeof account.compensation === 'object' ? account.compensation : { amount: 0, note: '', status: 'pending' };
-      account.status = ['active', 'pending', 'disabled'].includes(account.status) ? account.status : 'active';
+function normalizeStore(parsed) {
+  const accounts = parsed?.accounts && typeof parsed.accounts === 'object' ? parsed.accounts : {};
+  for (const [accountId, account] of Object.entries(accounts)) {
+    if (isLegacySampleAccount(accountId, account)) {
+      delete accounts[accountId];
+      continue;
     }
-    return { accounts };
-  } catch {
-    return { accounts: {} };
+    account.sessions = Array.isArray(account.sessions) ? account.sessions.filter(session => !isLegacySampleRecord(session)) : [];
+    account.subjective = Array.isArray(account.subjective) ? account.subjective : [];
+    account.cognition = Array.isArray(account.cognition) ? account.cognition : [];
+    account.games = Array.isArray(account.games) ? account.games : [];
+    account.settings = account.settings && typeof account.settings === 'object' ? account.settings : {};
+    account.compensation = account.compensation && typeof account.compensation === 'object' ? account.compensation : { amount: 0, note: '', status: 'pending' };
+    account.status = ['active', 'pending', 'disabled'].includes(account.status) ? account.status : 'active';
   }
+  return { accounts };
+}
+function jsonValue(value, fallback) {
+  try { return JSON.parse(value); } catch { return fallback; }
+}
+function persistAccounts(accounts) {
+  const insert = database.prepare(`INSERT INTO accounts (
+    account_id, login_key, user_json, password_json, sessions_json, subjective_json, cognition_json, games_json,
+    settings_json, compensation_json, status, created_at, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    database.exec('DELETE FROM accounts');
+    for (const [accountId, account] of Object.entries(accounts)) {
+      insert.run(accountId, account.user.loginKey, JSON.stringify(account.user), JSON.stringify(account.password),
+        JSON.stringify(account.sessions), JSON.stringify(account.subjective), JSON.stringify(account.cognition), JSON.stringify(account.games),
+        JSON.stringify(account.settings), JSON.stringify(account.compensation), account.status, account.createdAt, account.updatedAt);
+    }
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
+}
+function readStore() {
+  const rowCount = Number(database.prepare('SELECT COUNT(*) AS count FROM accounts').get().count);
+  if (rowCount === 0 && fs.existsSync(legacyDataFile)) {
+    try {
+      const legacyStore = normalizeStore(JSON.parse(fs.readFileSync(legacyDataFile, 'utf8')));
+      persistAccounts(legacyStore.accounts);
+      console.log(`Migrated ${Object.keys(legacyStore.accounts).length} account(s) from the legacy JSON store into SQLite.`);
+    } catch (error) {
+      console.error('Unable to import the legacy JSON store into SQLite:', error instanceof Error ? error.message : error);
+    }
+  }
+  const accounts = {};
+  try {
+    for (const row of database.prepare('SELECT * FROM accounts').all()) {
+      accounts[row.account_id] = {
+        user: jsonValue(row.user_json, {}), password: jsonValue(row.password_json, {}), sessions: jsonValue(row.sessions_json, []),
+        subjective: jsonValue(row.subjective_json, []), cognition: jsonValue(row.cognition_json, []), games: jsonValue(row.games_json, []),
+        settings: jsonValue(row.settings_json, {}), compensation: jsonValue(row.compensation_json, { amount: 0, note: '', status: 'pending' }),
+        status: row.status, createdAt: row.created_at, updatedAt: row.updated_at
+      };
+    }
+  } catch (error) {
+    console.error('Unable to read SQLite data store:', error instanceof Error ? error.message : error);
+  }
+  return normalizeStore({ accounts });
 }
 let store = readStore();
 function writeStore() {
-  fs.mkdirSync(path.dirname(dataFile), { recursive: true });
-  const temporaryFile = `${dataFile}.tmp`;
-  fs.writeFileSync(temporaryFile, JSON.stringify(store, null, 2), 'utf8');
-  fs.renameSync(temporaryFile, dataFile);
+  persistAccounts(store.accounts);
 }
-writeStore();
 
 function canonicalKey(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
@@ -155,7 +222,7 @@ function csvResponse(res, filename, columns, rows) {
   res.send(`\uFEFF${header}${lines.length ? `\n${lines.join('\n')}` : ''}`);
 }
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'FineFatigue LAN server' }));
+app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'FineFatigue LAN server', storage: 'sqlite' }));
 app.post('/api/auth/login', (req, res) => {
   const { identifier, password, mode = 'login' } = req.body || {};
   if (typeof password !== 'string') return res.status(400).json({ error: 'Password is required.' });

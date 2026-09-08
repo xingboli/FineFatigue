@@ -52,6 +52,7 @@ npm run preview:demo
 | Demo preview | `/FineFatigue/` 入口、资源和未知前端路径回退均成功 | `PASS`（HTTP smoke check） |
 | Demo `/api/health` | 静态预览不提供 API；返回 404 属于预期隔离 | `PASS` |
 | Full `/api/health` | Express 返回健康状态 | `PASS` |
+| Full SQLite health | `/api/health` 返回 `storage: "sqlite"` | `PASS`（2026-09-08） |
 | Full root/fallback | 根页面和未知前端路径均返回 SPA | `PASS` |
 
 GitHub Pages 还需区分三层证据：本地 `build:demo`、GitHub Actions 的构建/部署 job、线上 `https://xingboli.github.io/FineFatigue/` 的浏览器访问。任一层通过都不能替代另外两层。
@@ -82,6 +83,8 @@ GitHub Pages 还需区分三层证据：本地 `build:demo`、GitHub Actions 的
 | 管理 | 管理员登录、账户列表/审核、CSV 导出、权限拒绝 | `NOT VERIFIED` |
 | AI motivation | 本地规则；Full 可请求 `/api/ai/motivation` 并处理失败 | `NOT VERIFIED` |
 | 文件存储 | 写入、重启后读取、并发/异常写入行为 | `NOT VERIFIED` |
+
+SQLite 运维回归还应检查：旧 `data/finefatigue-store.json` 在空数据库首次启动时只导入一次且保留原文件；注册、管理员审核、同步和 CSV 导出在重启后仍可读取；备份/恢复操作在服务停止后包含一致的 `.db` 快照。
 
 ## 6. 任务级人工矩阵
 

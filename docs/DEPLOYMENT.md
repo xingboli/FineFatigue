@@ -65,23 +65,25 @@ npm start
 
 ## 3. Data backup and recovery
 
-Full 服务将数据写入 `data/finefatigue-store.json`。该目录被 Git 忽略，备份必须由部署者单独管理。当前实现使用临时文件再 rename 的单文件写入方式，但没有数据库事务、跨进程文件锁、加密存储、自动迁移、异地灾备或自动备份保证。
+Full 服务将数据写入 SQLite 数据库 `data/finefatigue.db`（可用 `.env` 的 `SQLITE_DATABASE_PATH` 修改）。该目录被 Git 忽略，备份必须由部署者单独管理。启动时启用 SQLite WAL 模式，账户与其会话/任务集合在单个 `BEGIN IMMEDIATE` 事务中写入；这不是多机共享或完整生产级数据库部署。
+
+若现有 `data/finefatigue-store.json` 存在而 SQLite 数据库尚无账户，首次启动会自动导入该 JSON；导入成功后 JSON 保留为可人工审计的迁移备份。迁移前仍建议先复制该 JSON，确认管理员登录、会话数和 CSV 导出后再决定是否归档旧文件。
 
 备份前先停止服务，只复制明确的数据文件到受控目录。例如 PowerShell：
 
 ```powershell
-Copy-Item -LiteralPath 'data/finefatigue-store.json' -Destination 'D:\FineFatigue-backups\finefatigue-store-YYYYMMDD-HHmmss.json'
+Copy-Item -LiteralPath 'data/finefatigue.db' -Destination 'D:\FineFatigue-backups\finefatigue-YYYYMMDD-HHmmss.db'
 ```
 
 恢复时：
 
 1. 停止唯一的 Full 服务实例。
-2. 先保留当前文件副本，再将已确认的备份复制回 `data/finefatigue-store.json`。
+2. 先保留当前数据库副本，再将已确认的备份复制回 `data/finefatigue.db`。
 3. 启动服务并访问 `/api/health`。
 4. 分别用管理员和参与者账户验证登录、会话列表和必要的 CSV 导出。
 5. 记录恢复时间、备份文件校验信息和验证结果。
 
-只运行一个写入实例；多实例同时写同一个 JSON 文件不在当前实现的安全保证范围内。
+备份和恢复均应在服务停止后进行，确保 WAL 已合并且 `.db` 是一致快照。只运行一个应用写入实例；SQLite WAL 改善单机事务可靠性，但当前实现没有跨主机共享、应用级并发协调、加密存储、异地灾备或自动备份。
 
 ## 4. Security and operational boundary
 

@@ -58,7 +58,7 @@ Demo 和 Full 共享同一套 React/Vite 实现，但实验计时不同。Demo �
 - 前端：React 19、TypeScript、Vite、Tailwind CSS、lucide-react、Motion
 - 浏览器能力：DeviceMotion、LocalStorage、Canvas、Fetch API
 - 服务端：Node.js、Express、dotenv、Node `crypto`
-- 数据存储：服务端本地 JSON 文件；浏览器 LocalStorage 缓存
+- 数据存储：服务端 SQLite 文件；浏览器 LocalStorage 缓存
 - 网络部署：可通过 Tailscale Serve 将服务以 Tailnet HTTPS 地址暴露给已加入 Tailnet 的设备
 
 ## 项目目录
@@ -129,6 +129,7 @@ Demo 构建使用 Vite `demo` mode，自动把静态资源 base 设置为 `/Fine
 | `MIMO_BASE_URL` | 否 | 默认 `https://api.xiaomimimo.com/v1`。 |
 | `MIMO_MODEL` | 否 | 默认 `mimo-v2.5-pro`。 |
 | `PORT` | 否 | 服务监听端口，默认 `3000`。 |
+| `SQLITE_DATABASE_PATH` | 否 | SQLite 数据库文件路径（相对项目根目录），默认 `data/finefatigue.db`。 |
 
 修改 `.env` 后必须重启 `npm start`，新环境变量才会被加载。
 
@@ -187,6 +188,6 @@ npm run preview:demo # /FineFatigue/ 子路径静态 Demo 预览
 
 ## 数据与安全提示
 
-- 服务端会在 `data/finefatigue-store.json` 保存受试者账户、密码哈希、会话、自评、认知任务结果、设置和报酬管理记录；该目录被 `.gitignore` 排除。
+- 服务端会在 `data/finefatigue.db` 保存受试者账户、密码哈希、会话、自评、认知任务结果、设置和报酬管理记录；该目录及 SQLite 的 `-wal`/`-shm` 辅助文件被 `.gitignore` 排除。首次启动时如检测到旧版 `data/finefatigue-store.json` 且数据库为空，会导入旧数据并保留 JSON 文件作为迁移备份。
 - 浏览器 LocalStorage 也会缓存当前设备上的会话、自评、认知与追踪任务结果、设置、登录令牌和按受试者划分的同步清单。清除浏览器站点数据会删除这些本地缓存。
 - 认知测试的完整本地/同步记录包含交互事件和配对尝试。管理员可分别导出便于训练的汇总 CSV 与逐选择/逐尝试的原始长表 CSV；结果页也可下载本次原始 JSON。所有导出仍属于研究数据，应按实验伦理与数据管理要求保留。

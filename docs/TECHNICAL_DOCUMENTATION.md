@@ -56,7 +56,7 @@ Demo 不是模拟传感器模式。`App.tsx` 的当前入口实例化的是 `Rea
 Express（server.mjs，0.0.0.0:PORT）
   ├─ 认证与内存会话
   ├─ 账号、同步、CSV 导出、AI 建议 API
-  └─ data/finefatigue-store.json（单个本地 JSON 文件）
+  └─ data/finefatigue.db（单机 SQLite 数据库）
                    │
                    └─ 可选：小米 MiMo OpenAI 兼容 API（仅恢复建议）
 ```
@@ -98,7 +98,7 @@ Express（server.mjs，0.0.0.0:PORT）
 | `src/services/cloudSyncService.ts` | 按受试者增量同步、本地备份、离线重试。 |
 | `src/utils/` | 信号处理、敲击/描摹/认知指标、疲劳指数规则。 |
 | `src/types/index.ts` | 前后端共享的核心记录结构。 |
-| `server.mjs` | Express API、认证、JSON 存储、CSV 导出、可选 MiMo 代理和 SPA 回退。 |
+| `server.mjs` | Express API、认证、SQLite 存储、CSV 导出、可选 MiMo 代理和 SPA 回退。 |
 | `data/` | 运行时创建的数据文件；已被 Git 忽略。 |
 
 ## 4. 真实传感器采集
@@ -241,7 +241,7 @@ cognitiveStabilityScoreRaw = 100
 
 服务端碰到同一 ID、但 JSON 内容不同的记录时，时间戳较新的版本保留原 ID，另一版本生成 `<原ID>-CONFLICT-<sha256前10位>` 副本。这个策略避免静默丢记录，但不提供人工冲突审计界面、记录级编辑或删除语义。
 
-服务端将整个账户对象保存在 `data/finefatigue-store.json`，写入采用“写 `.tmp` 后 rename”的单文件替换方式。它不具备数据库事务、加密、文件锁或多实例并发控制；**绝不能让多个服务进程共享该文件**。备份应在停止服务后复制该 JSON，并按研究数据保护要求限制系统权限。
+服务端将账户存入 `data/finefatigue.db` 的 SQLite `accounts` 表。表保存账户 ID、登录键、状态、创建/更新时间，以及 user/password/sessions/subjective/cognition/games/settings/compensation JSON 列；这维持了现有 API 的嵌套数据结构，同时使用 SQLite 的事务和 WAL 文件保证单机写入一致性。`writeStore()` 在 `BEGIN IMMEDIATE` 事务中替换当前账户快照；当前仍不是细粒度关系模型或多实例共享实现。若 SQLite 中没有账户且旧 `data/finefatigue-store.json` 存在，启动会一次性导入并保留 JSON 作为迁移备份。备份应在停止服务后复制 `.db` 文件，并按研究数据保护要求限制系统权限。
 
 ## 8. API 参考
 
@@ -328,13 +328,13 @@ git status --short
 
 与 IMU 相关的改动必须在目标手机、目标浏览器、实际 Tailscale HTTPS 地址上人工验证：允许权限后包计数增长、移动时波形变化、校准通过、稳定性记录实际样本数/采样率正确；无权限或无事件时必须显示不可用而不是填充数据。
 
-与数据链路相关的改动至少验证：注册→管理员批准→登录→完成一条记录→同步→管理员导出 CSV；再验证第二次同步只上传新记录，以及同 ID 且内容不同的服务器冲突副本行为。不要将真实实验数据、`.env` 或 `data/finefatigue-store.json` 加入 Git。
+与数据链路相关的改动至少验证：注册→管理员批准→登录→完成一条记录→同步→管理员导出 CSV；再验证第二次同步只上传新记录，以及同 ID 且内容不同的服务器冲突副本行为。不要将真实实验数据、`.env`、`data/finefatigue.db` 或 SQLite 的 `-wal`/`-shm` 文件加入 Git。
 
 ## 13. 已知限制与后续维护重点
 
 1. **数据可靠性不等于实验效度。** 代码记录真实浏览器事件与原始数组，但采样率、设备方向、传感器质量、触控延迟和环境条件尚未标准化或自动审计。
 2. **主评分仍是启发式规则。** 疲劳指数、稳定性/描摹限制和认知展示分数没有在代码中附带效度、重复性或常模证据。
-3. **单机 JSON 存储。** 没有数据库、迁移、加密、备份自动化、并发控制、服务端删除、审计日志或灾难恢复。
+3. **单机 SQLite 存储。** 提供 WAL 与单机事务，且可从旧 JSON 自动导入；尚无备份自动化、跨主机/多实例协调、加密、细粒度关系迁移、服务端删除、审计日志或灾难恢复。
 4. **同步删除不传播。** 浏览器删除本地记录后，下次同步可能从服务器重新合并回来；需要真正删除时，必须新增受控服务端删除 API、权限与审计设计。
 5. **同步清单不可恢复语义有限。** 清除 LocalStorage 会丢失已确认 ID，下一次会重新上传本机剩余记录；服务端合并会去重，但不应把它视为完整备份策略。
 6. **API 请求限制。** 当前 JSON body 限制 2 MB，长时高频 IMU 或大量历史首次同步需要分批协议或改用文件/对象存储。

@@ -122,7 +122,7 @@ Cognition 同时使用 `performance.now()` 记录单调递增的 `elapsedMs`，�
 | `finefatigue_games_v2` | 游戏结果，包括独立任务数据 |
 | `finefatigue_cognition_memory_v1` | 完整认知记忆结果 |
 
-认证/同步相关键还包括 `finefatigue_auth_v2`、`finefatigue_cloud_sync_state_v1`、`finefatigue_device_id_v1`、`finefatigue_sync_manifest_v1`。Full 服务端使用 `data/finefatigue-store.json`，包含账户、会话、认知和游戏等集合；服务端 CSV 路由提供 sessions、raw、users、cognition、cognition-raw、games 导出。具体 CSV 列以 `server.mjs` 的生成函数为准，新增字段必须同步更新导出与本文件。
+认证/同步相关键还包括 `finefatigue_auth_v2`、`finefatigue_cloud_sync_state_v1`、`finefatigue_device_id_v1`、`finefatigue_sync_manifest_v1`。Full 服务端使用 `data/finefatigue.db` SQLite 数据库；`accounts` 表以账户 ID、登录键、状态、时间戳及 JSON 列保存公开用户资料、密码记录、会话、自评、认知、游戏、设置和报酬对象。服务端 CSV 路由提供 sessions、raw、users、cognition、cognition-raw、games 导出。具体 CSV 列以 `server.mjs` 的生成函数为准，新增字段必须同步更新导出与本文件。
 
 同步请求包含认证 token 和客户端数据集合/manifest；服务端按当前实现合并并返回同步状态。当前没有数据库事务、字段迁移或加密 at rest。
 

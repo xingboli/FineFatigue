@@ -12,7 +12,7 @@ Express（server.mjs）
   ├─ 认证、会话、管理员 API
   ├─ 合并同步与 CSV 导出
   ├─ MiMo API 代理
-  └─ data/finefatigue-store.json
+  └─ data/finefatigue.db (SQLite)
            │
            ▼
 Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
@@ -39,7 +39,7 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 | `src/services/aiMotivationService.ts` | AI 建议请求及本地规则降级。 |
 | `src/utils/cognitionMetrics.ts` | 从实际配对尝试计算准确率、响应时间、前后半程变化和透明的任务指标。 |
 | `src/utils/` | 指标计算、信号处理、疲劳评分和 `celebration.ts` 完成反馈。 |
-| `server.mjs` | Express API、账户密码哈希、内存会话、JSON 存储、CSV 导出、MiMo 代理、静态站点服务。 |
+| `server.mjs` | Express API、账户密码哈希、内存会话、SQLite 存储、CSV 导出、MiMo 代理、静态站点服务。 |
 
 ## 3. 前后端交互
 
@@ -66,8 +66,8 @@ Tailscale Serve HTTPS（可选的 Tailnet 访问入口）
 ## 4. 数据存储与备份
 
 - 浏览器：会话、自评、认知任务结果、标准化追踪任务结果、设置、活动报告、认证令牌及同步状态保存在 LocalStorage。同步清单按登录受试者 ID 记录已确认的记录 ID；首次同步上传本机记录，后续仅上传新记录。
-- 服务端：`data/finefatigue-store.json` 保存账户、密码哈希、会话、自评、认知任务结果、设置和报酬记录；先写入临时文件后再重命名。
-- 服务端数据目录默认不入 Git。部署或迁移前应在服务停止后复制该 JSON 文件，并限制文件系统访问权限。
+- 服务端：`data/finefatigue.db` SQLite 保存账户、密码哈希、会话、自评、认知任务结果、设置和报酬记录。启动时启用 WAL；账户集合更新由 `BEGIN IMMEDIATE` 事务写入。旧 `finefatigue-store.json` 只用于数据库为空时的一次性导入，导入后保留为迁移备份。
+- 服务端数据目录默认不入 Git。部署、迁移或备份前应停止服务并复制 `.db` 文件，限制文件系统访问权限。
 - CSV 可导出选定的会话派生字段、受试者管理字段、认知汇总指标、完整评测原始长表、认知原始长表或追踪任务逐点轨迹；完整会话中的波形与描摹点、完整认知任务的点击/尝试数组保存在相应 JSON 记录内。
 
 服务端 JSON 不提供加密、版本迁移、数据库锁或多进程并发控制。不要让多个 `npm start` 实例共享同一个数据文件。
@@ -113,7 +113,7 @@ Demo timing 只用于 walkthrough；不要为了让 Demo 通过而修改 Full �
 
 - `npm run build`、`npm start` 和 `GET /api/health`。
 - 注册/审核/登录/退出、受试者同步、管理员、CSV 和可选 MiMo 路径。
-- `.env.example`、`data/finefatigue-store.json`、Tailscale Serve 目标和 JSON 备份策略。
+- `.env.example`、`SQLITE_DATABASE_PATH`、`data/finefatigue.db`、Tailscale Serve 目标和 SQLite 备份策略。
 
 ### 6.4 修改 Shared UI 或服务时
 
@@ -134,7 +134,7 @@ Demo timing 只用于 walkthrough；不要为了让 Demo 通过而修改 Full �
 
 ## 8. 已知限制与待处理事项
 
-- 当前数据层是单机 JSON，未实现数据库、备份自动化、并发写入控制、静态文件持久化服务或灾难恢复。
+- 当前数据层是单机 SQLite，未实现备份自动化、跨主机/多实例协调、加密存储、细粒度关系模型、静态文件持久化服务或灾难恢复。
 - 服务端内存会话会在重启后失效；未实现密码找回、登录限流、审计日志、HTTPS 以外的传输策略或细粒度管理员角色。
 - 删除历史记录只修改浏览器缓存；下一次同步可能从服务端合并回已同步记录。若需要真正删除，应新增受控的服务端删除 API 和审计策略。
 - 管理员导出的数据带有受试者编号，属于假名化而不是自动匿名化；导出前应根据实验伦理要求处理。
