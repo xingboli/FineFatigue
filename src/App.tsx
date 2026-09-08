@@ -20,6 +20,7 @@ import { RealHardwareSensorAdapter } from './services/sensorAdapter';
 import { CognitionStorage } from './services/cognitionStorage';
 import { DEMO_MODE } from './config/runtime';
 import { DemoModeBanner } from './components/common/DemoModeBanner';
+import { DemoRoleSwitcher } from './components/common/DemoRoleSwitcher';
 import { 
   AssessmentReportData, 
   IMUDataPoint, 
@@ -33,6 +34,15 @@ import {
 
 const sensorService = new RealHardwareSensorAdapter();
 
+const DEMO_PARTICIPANT: UserProfile = {
+  id: 'demo-participant-001', name: '演示受试者', email: 'participant.demo@local.invalid', role: 'participant',
+  participantCode: 'DEMO-P-001', avatar: '🧑‍🔬', lastLogin: Date.now()
+};
+const DEMO_RESEARCHER: UserProfile = {
+  id: 'demo-researcher-001', name: '演示管理员', email: 'researcher.demo@local.invalid', role: 'researcher',
+  participantCode: 'DEMO-R-001', avatar: '🛡️', lastLogin: Date.now()
+};
+
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('overview');
   const [subjectId, setSubjectId] = useState<string>('未设置');
@@ -43,7 +53,7 @@ export default function App() {
   const [activeCognitionResult, setActiveCognitionResult] = useState<CognitionMemoryResult | null>(null);
 
   // Auth & Cloud Sync state
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => authService.getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => DEMO_MODE ? DEMO_PARTICIPANT : authService.getCurrentUser());
   const [syncState, setSyncState] = useState<CloudSyncState>(() => cloudSyncService.getState());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
@@ -74,13 +84,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void authService.validateCurrentSession();
+    if (!DEMO_MODE) void authService.validateCurrentSession();
   }, []);
 
   // After a LAN account is restored or switched, merge the browser cache with
   // the account's central record and refresh the visible dashboard data.
   useEffect(() => {
-    if (!currentUser || currentUser.role !== 'participant') return;
+    if (DEMO_MODE || !currentUser || currentUser.role !== 'participant') return;
     void cloudSyncService.syncNow().then(() => {
       setSessions(StorageService.getSessions());
       setSubjectiveRecords(StorageService.getSubjectiveFatigueRecords());
@@ -92,6 +102,7 @@ export default function App() {
   // Listen to Auth changes
   useEffect(() => {
     const unsubAuth = authService.subscribe(user => {
+      if (DEMO_MODE) return;
       setCurrentUser(user);
       if (user) {
         setSubjectId(user.participantCode);
@@ -190,6 +201,12 @@ export default function App() {
     setCurrentTab('report');
   };
   const handleGameEnd = async (result: StarCatcherResult) => { StorageService.addGameResult(result); cloudSyncService.markPending(); await cloudSyncService.syncNow(); };
+  const handleDemoRoleSwitch = (user: UserProfile) => {
+    if (!DEMO_MODE) return;
+    setCurrentUser(user);
+    setSubjectId(user.participantCode);
+    setCurrentTab(user.role === 'researcher' ? 'admin' : 'overview');
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
@@ -220,6 +237,7 @@ export default function App() {
         {/* Content View with bottom padding for mobile navigation bar */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
           <DemoModeBanner />
+          {DEMO_MODE && currentUser && <DemoRoleSwitcher currentUser={currentUser} participant={DEMO_PARTICIPANT} researcher={DEMO_RESEARCHER} onSwitch={handleDemoRoleSwitch} />}
           {currentTab === 'overview' && (
             <OverviewPage
               subjectId={subjectId}

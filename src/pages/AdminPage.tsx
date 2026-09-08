@@ -11,6 +11,12 @@ type AdminAccount = {
   compensation: { amount: number; note: string; status: CompensationStatus };
 };
 
+const DEMO_ACCOUNTS: AdminAccount[] = [
+  { id: 'demo-p-001', participantCode: 'DEMO-P-001', createdAt: 1764547200000, lastLogin: 1765189800000, status: 'active', experimentCount: 6, subjectiveCount: 6, cognitionCount: 3, gameCount: 4, compensation: { amount: 180, note: '已完成第 3 次实验回访', status: 'approved' } },
+  { id: 'demo-p-002', participantCode: 'DEMO-P-002', createdAt: 1764633600000, lastLogin: 1765103400000, status: 'active', experimentCount: 4, subjectiveCount: 4, cognitionCount: 2, gameCount: 2, compensation: { amount: 120, note: '等待研究人员复核', status: 'pending' } },
+  { id: 'demo-p-003', participantCode: 'DEMO-P-003', createdAt: 1764720000000, lastLogin: 0, status: 'pending', experimentCount: 0, subjectiveCount: 0, cognitionCount: 0, gameCount: 0, compensation: { amount: 0, note: '注册信息待审核', status: 'pending' } }
+];
+
 const formatTime = (value: number, locale: string) => value ? new Date(value).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US') : '--';
 
 export const AdminPage: React.FC = () => {
@@ -19,6 +25,11 @@ export const AdminPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadAccounts = async () => {
+    if (DEMO_MODE) {
+      setAccounts(DEMO_ACCOUNTS);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true); setError(null);
     try {
       const response = await fetch('/api/admin/accounts', { headers: authService.getAuthHeaders() });
@@ -31,6 +42,7 @@ export const AdminPage: React.FC = () => {
   };
   useEffect(() => {
     if (DEMO_MODE) {
+      setAccounts(DEMO_ACCOUNTS);
       setIsLoading(false);
       return;
     }
@@ -71,7 +83,7 @@ export const AdminPage: React.FC = () => {
         <Summary label={locale === 'zh' ? '已停用账号' : 'Disabled accounts'} value={accounts.filter(account => account.status === 'disabled').length} />
       </div>
       <div className="space-y-3">
-        {isLoading ? <div className="p-10 text-center text-sm text-slate-400">{locale === 'zh' ? '正在加载管理员数据…' : 'Loading administrator data…'}</div> : accounts.length === 0 ? <div className="p-10 bg-white rounded-2xl border border-slate-200 text-center text-sm text-slate-400"><UsersRound className="w-7 h-7 mx-auto mb-2" />{locale === 'zh' ? '尚无已注册受试者。' : 'No registered participants yet.'}</div> : accounts.map(account => <AccountCard key={account.id} account={account} locale={locale} onSaved={loadAccounts} onError={setError} />)}
+      {isLoading ? <div className="p-10 text-center text-sm text-slate-400">{locale === 'zh' ? '正在加载管理员数据…' : 'Loading administrator data…'}</div> : accounts.length === 0 ? <div className="p-10 bg-white rounded-2xl border border-slate-200 text-center text-sm text-slate-400"><UsersRound className="w-7 h-7 mx-auto mb-2" />{locale === 'zh' ? '尚无已注册受试者。' : 'No registered participants yet.'}</div> : accounts.map(account => <AccountCard key={account.id} account={account} locale={locale} isDemo={DEMO_MODE} onSaved={loadAccounts} onError={setError} />)}
       </div>
     </div>
   );
@@ -79,13 +91,17 @@ export const AdminPage: React.FC = () => {
 
 const Summary: React.FC<{ label: string; value: number }> = ({ label, value }) => <div className="bg-white rounded-2xl border border-slate-200 p-4"><div className="text-[11px] text-slate-400 font-mono">{label}</div><div className="mt-1 text-2xl font-bold text-slate-900">{value}</div></div>;
 
-const AccountCard: React.FC<{ account: AdminAccount; locale: string; onSaved: () => Promise<void>; onError: (message: string | null) => void }> = ({ account, locale, onSaved, onError }) => {
+const AccountCard: React.FC<{ account: AdminAccount; locale: string; isDemo: boolean; onSaved: () => Promise<void>; onError: (message: string | null) => void }> = ({ account, locale, isDemo, onSaved, onError }) => {
   const [amount, setAmount] = useState(String(account.compensation.amount));
   const [note, setNote] = useState(account.compensation.note);
   const [compensationStatus, setCompensationStatus] = useState<CompensationStatus>(account.compensation.status);
   const [resetPassword, setResetPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const save = async (status = account.status) => {
+    if (isDemo) {
+      onError(locale === 'zh' ? '演示数据为只读；本地完整版中可修改账户与报酬记录。' : 'Demo data is read-only. Account and compensation changes are available in Local Full mode.');
+      return;
+    }
     setIsSaving(true); onError(null);
     try {
       const response = await fetch('/api/admin/accounts/' + encodeURIComponent(account.id), {
