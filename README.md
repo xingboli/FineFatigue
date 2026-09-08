@@ -4,6 +4,12 @@ FineFatigue 是一个面向手部疲劳与精细运动实验的数据采集 Web 
 
 本项目用于实验采集与研究辅助，不用于临床诊断或医疗决策。
 
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+Third-party dependencies and remotely loaded fonts remain under their respective upstream licenses and are not relicensed by this project license. The repository does not redistribute font files; the current Google Fonts imports are JetBrains Mono and Plus Jakarta Sans, each available under the SIL Open Font License 1.1.
+
 ## Online Demo
 
 在线演示：<https://xingboli.github.io/FineFatigue/>
